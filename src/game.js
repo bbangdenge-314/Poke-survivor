@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=9';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=9';
-import { SFX } from './audio.js?v=9';
-import { metaMods, markCaught, markSeen } from './save.js?v=9';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=10';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=10';
+import { SFX } from './audio.js?v=10';
+import { metaMods, markCaught, markSeen } from './save.js?v=10';
 
 const TAU = Math.PI * 2;
 const WORLD = 3000;
@@ -669,12 +669,12 @@ export class Game {
   updateSpawns(dt) {
     if (this.finalSpawned && this.enemies.length === 0 && !this.finalBoss) { /* noop */ }
     this.spawnTimer -= dt;
-    const rate = Math.max(0.13, 0.62 - this.time * 0.00055);
+    const rate = Math.max(0.11, 0.5 - this.time * 0.00048);
     if (this.spawnTimer <= 0 && this.enemies.length < 230) {
       this.spawnTimer = rate * rand(0.75, 1.25);
       const pool = this.currentPool();
       if (pool.length) {
-        const n = 1 + (this.time > 420 ? 2 : this.time > 180 ? 1 : 0);
+        const n = 1 + (this.time > 90 ? 1 : 0) + (this.time > 300 ? 1 : 0);
         for (let i = 0; i < n; i++) this.spawnEnemy(pick(pool));
       }
     }
@@ -2008,20 +2008,37 @@ export class Game {
     if (this.announcement) {
       const an = this.announcement;
       const a = Math.min(1, an.life / 0.5);
+      const y = H * 0.17;
       ctx.save();
       ctx.globalAlpha = a;
       ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.fillRect(0, H * 0.20, W, 62);
-      ctx.font = '900 26px system-ui, -apple-system, sans-serif';
+      ctx.font = '900 25px system-ui, -apple-system, sans-serif';
+      const tw = ctx.measureText(an.text).width;
+      const bw = Math.min(W - 40, tw + 60), bh = an.sub ? 68 : 46;
+      const bx = W / 2 - bw / 2, by = y - 6;
+      ctx.beginPath();
+      const r = 16;
+      ctx.moveTo(bx + r, by);
+      ctx.lineTo(bx + bw - r, by); ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + r);
+      ctx.lineTo(bx + bw, by + bh - r); ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - r, by + bh);
+      ctx.lineTo(bx + r, by + bh); ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - r);
+      ctx.lineTo(bx, by + r); ctx.quadraticCurveTo(bx, by, bx + r, by);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(8,13,24,0.80)';
+      ctx.fill();
+      ctx.strokeStyle = an.color;
+      ctx.globalAlpha = a * 0.5;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.globalAlpha = a;
       ctx.fillStyle = an.color;
-      ctx.shadowColor = an.color; ctx.shadowBlur = 18;
-      ctx.fillText(an.text, W / 2, H * 0.20 + 30);
+      ctx.shadowColor = an.color; ctx.shadowBlur = 16;
+      ctx.fillText(an.text, W / 2, by + 31);
       if (an.sub) {
         ctx.shadowBlur = 0;
-        ctx.font = '600 14px system-ui, -apple-system, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.75)';
-        ctx.fillText(an.sub, W / 2, H * 0.20 + 52);
+        ctx.font = '600 13.5px system-ui, -apple-system, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fillText(an.sub, W / 2, by + 53);
       }
       ctx.restore();
     }

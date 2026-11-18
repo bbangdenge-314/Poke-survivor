@@ -313,7 +313,7 @@ export const STAGES = [
   {
     key:'meadow', name:'관동 초원', sub:'초보 트레이너의 첫 모험', duration:900,
     desc:'15분간 버텨라. 마지막에 뮤츠가 강림한다.',
-    sky:['#0d1b2a','#16324f'], ground:['#1b4332','#14322a'], accent:'#4ade80', deco:'grass',
+    sky:['#0d1b2a','#16324f'], ground:['#2c6247','#1d4a35'], accent:'#4ade80', deco:'grass',
     pools:[
       { t:0,   list:['caterpie','rattata','pidgey','weedle'] },
       { t:45,  list:['zubat','oddish','nidoranf','diglett'] },
@@ -333,7 +333,7 @@ export const STAGES = [
   {
     key:'cave', name:'은빛 동굴', sub:'빛도 들지 않는 깊은 동굴', duration:900,
     desc:'더 강한 적이 몰려온다. 보상도 두 배.',
-    sky:['#14121f','#241d33'], ground:['#2b2b38','#1d1d26'], accent:'#a5b4fc', deco:'rock',
+    sky:['#14121f','#241d33'], ground:['#3d3d4e','#2a2a38'], accent:'#a5b4fc', deco:'rock',
     pools:[
       { t:0,   list:['geodude','zubat','diglett','sandshrew'] },
       { t:45,  list:['onix','machop','koffing','cubone'] },
@@ -353,7 +353,7 @@ export const STAGES = [
   {
     key:'sky', name:'하늘 제단', sub:'전설이 잠든 구름 위의 성소', duration:900,
     desc:'최종 스테이지. 모든 것이 가장 강하다.',
-    sky:['#1a1030','#3b1d5c'], ground:['#2d1b4e','#20143a'], accent:'#c084fc', deco:'star',
+    sky:['#1a1030','#3b1d5c'], ground:['#432b6b','#2e1f4d'], accent:'#c084fc', deco:'star',
     pools:[
       { t:0,   list:['pidgey','zubat','gastly','ponyta'] },
       { t:45,  list:['haunter','magnemite','drowzee','voltorb'] },
