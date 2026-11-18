@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=14';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=14';
-import { SFX } from './audio.js?v=14';
-import { metaMods, markCaught, markSeen } from './save.js?v=14';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=16';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=16';
+import { SFX } from './audio.js?v=16';
+import { metaMods, markCaught, markSeen } from './save.js?v=16';
 
 const TAU = Math.PI * 2;
 const WORLD = 4600;
@@ -1562,6 +1562,7 @@ export class Game {
       if (++drawn > 220) break;
     }
     this.drawPlayer(ctx);
+    this.drawOrbits(ctx);
     this.drawHazards(ctx);
     this.drawProjectiles(ctx);
     this.drawEBullets(ctx);
@@ -1886,14 +1887,18 @@ export class Game {
       ctx.save();
       if (b.kind === 'flame') {
         ctx.globalCompositeOperation = 'lighter';
-        const rr = b.r * (1.35 + Math.sin(performance.now() / 40 + b.x) * 0.12);
-        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, rr);
-        g.addColorStop(0, 'rgba(255,247,237,0.95)');
-        g.addColorStop(0.30, hexA(b.color, 0.8));
-        g.addColorStop(0.62, 'rgba(249,115,22,0.35)');
-        g.addColorStop(1, 'rgba(249,115,22,0)');
+        const rr = b.r * (1.25 + Math.sin(performance.now() / 40 + b.x) * 0.1);
+        ctx.translate(b.x, b.y);
+        ctx.rotate(Math.atan2(b.vy, b.vx));
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rr * 1.5);
+        g.addColorStop(0, 'rgba(255,251,235,0.95)');
+        g.addColorStop(0.22, hexA(b.color, 0.9));
+        g.addColorStop(0.55, 'rgba(249,115,22,0.42)');
+        g.addColorStop(1, 'rgba(239,68,68,0)');
         ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(b.x, b.y, rr, 0, TAU); ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rr * 1.9, rr * 0.95, 0, 0, TAU);
+        ctx.fill();
       } else if (b.kind === 'shadow' || b.kind === 'aura') {
         ctx.shadowColor = b.color; ctx.shadowBlur = 14;
         ctx.fillStyle = b.color;
@@ -2074,6 +2079,35 @@ export class Game {
         ctx.fillText(an.sub, W / 2, by + 53);
       }
       ctx.restore();
+    }
+  }
+
+  drawOrbits(ctx) {
+    const p = this.player;
+    for (const w of p.weaponList) {
+      if (w.id !== 'leaf') continue;
+      const st = WEAPONS.leaf.stats(w.lv);
+      const blades = w.lv >= WEAPONS.leaf.max ? st.count * 2 : st.count;
+      for (let i = 0; i < blades; i++) {
+        const a = w.angle + (i / blades) * TAU;
+        const bx = p.x + Math.cos(a) * st.radius;
+        const by = p.y + Math.sin(a) * st.radius * 0.78;
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(a + Math.PI / 2 + Math.sin(p.t * 8 + i) * 0.12);
+        ctx.shadowColor = '#4ade80';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = i % 2 ? '#86efac' : '#4ade80';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 6, 15, 0, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(240,253,244,0.85)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(0, -14); ctx.lineTo(0, 14);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
   }
 

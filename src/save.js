@@ -1,5 +1,5 @@
 /* 영구 저장(localStorage) · 로그라이크 메타 진행 */
-import { CHARACTERS, UPGRADES, SAVE_KEY } from './data.js?v=14';
+import { CHARACTERS, UPGRADES, SAVE_KEY } from './data.js?v=16';
 
 const defaultSave = () => ({
   v: 3,
