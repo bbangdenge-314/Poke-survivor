@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=5';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=5';
-import { SFX } from './audio.js?v=5';
-import { metaMods, markCaught, markSeen } from './save.js?v=5';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=6';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=6';
+import { SFX } from './audio.js?v=6';
+import { metaMods, markCaught, markSeen } from './save.js?v=6';
 
 const TAU = Math.PI * 2;
 const WORLD = 3000;
@@ -138,7 +138,7 @@ export class Game {
   }
 
   xpNeeded(level) {
-    return Math.round(4 + level * 3 + Math.pow(level, 1.72) * 0.9);
+    return Math.round(5 + level * 4 + Math.pow(level, 1.95) * 1.1);
   }
 
   /* ================= 스탯 재계산 ================= */
@@ -498,12 +498,11 @@ export class Game {
       case 'dash': {
         if (this.dashState) return false;
         let a;
+        const near = this.nearestEnemies(1, 460)[0];
         const mv = this.moveInput || { x: 0, y: 0 };
-        if (Math.hypot(mv.x, mv.y) > 0.1) a = Math.atan2(mv.y, mv.x);
-        else {
-          const near = this.nearestEnemies(1, 500)[0];
-          a = near ? Math.atan2(near.y - p.y, near.x - p.x) : (p.face > 0 ? 0 : Math.PI);
-        }
+        if (near) a = Math.atan2(near.y - p.y, near.x - p.x);
+        else if (Math.hypot(mv.x, mv.y) > 0.1) a = Math.atan2(mv.y, mv.x);
+        else a = p.face > 0 ? 0 : Math.PI;
         this.dashState = { angle: a, speed: st.dist / 0.16, t: 0.16, dmg: st.dmg, hit: new Set(), count: awake ? 2 : 1 };
         SFX.dash();
         return true;
@@ -981,6 +980,7 @@ export class Game {
       p.xpNext = this.xpNeeded(p.level);
       this.pendingLevels = (this.pendingLevels || 0) + 1;
       this.floatText(p.x, p.y - 46, 'LEVEL ' + p.level, '#facc15', 1.1);
+      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.03);
       this.rings.push({ x: p.x, y: p.y, r: 20, r1: 110, life: 0.55, max: 0.55, color: '#facc15', kind: 'heal', hit: new Set(), dmg: 0 });
       SFX.levelup();
       this.checkEvolution();
@@ -1112,6 +1112,7 @@ export class Game {
     p.stageId = id;
     const nm = DEX[id] ? DEX[id].n : (BRANCH_NAMES[id] || '???');
     p.stageName = nm;
+    p.baseName = nm;
     p.r = Math.min(30, 20 + this.evoStage * 3);
     this.base.hp *= 1.22;
     this.base.speed *= 1.03;
@@ -1146,7 +1147,8 @@ export class Game {
   awaken() {
     const p = this.player;
     this.evoStage++;
-    const nm = this.currentStageName() + ' 각성';
+    const base = p.baseName || this.char.chain[this.char.chain.length - 1].name;
+    const nm = base + (this.evoStage >= 2 ? ' · 초각성' : ' · 각성');
     p.stageName = nm;
     p.scale = 1 + this.evoStage * 0.08;
     this.base.hp *= 1.28;
@@ -1313,7 +1315,7 @@ export class Game {
     } else if (e.elite) {
       this.pickups.push({ x: e.x, y: e.y, kind: 'chest', life: 90, bob: 0 });
     } else {
-      if (Math.random() < 0.02 + this.meta.luck * 0.25) this.pickups.push({ x: e.x, y: e.y, kind: 'heart', life: 20, bob: 0 });
+      if (Math.random() < 0.025 + this.meta.luck * 0.25) this.pickups.push({ x: e.x, y: e.y, kind: 'heart', life: 20, bob: 0 });
       if (e.shiny) {
         this.shiniesKilled++;
         this.runDust += 1;
