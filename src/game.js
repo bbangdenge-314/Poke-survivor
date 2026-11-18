@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=18';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=18';
-import { SFX } from './audio.js?v=18';
-import { metaMods, markCaught, markSeen } from './save.js?v=18';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=19';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=19';
+import { SFX } from './audio.js?v=19';
+import { metaMods, markCaught, markSeen } from './save.js?v=19';
 
 const TAU = Math.PI * 2;
 const WORLD = 4600;
@@ -238,7 +238,7 @@ export class Game {
       if (p.wishT > 25) {
         p.wishT = 0;
         p.hp = Math.min(p.maxHp, p.hp + 12);
-        this.runCoins += 8;
+        this.runCoins += 4;
         this.floatText(p.x, p.y - 30, '소원 성취!', '#fcd34d');
       }
     }
@@ -1032,8 +1032,13 @@ export class Game {
     }
     const n = p.sig === 'adapt' ? 4 : 3;
     const out = [];
+    // 기술을 최소 2장 보장 (성장 정체 방지)
+    const weapons = pool.filter(c => c.type === 'weapon');
+    const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    shuffle([...weapons]).slice(0, Math.min(2, n - 1)).forEach(c => out.push(c));
     let guard = 0;
-    while (out.length < n && guard++ < 400 && weighted.length) {
+    while (out.length < n && guard++ < 300) {
+      if (!weighted.length) break;
       const c = pick(weighted);
       if (out.some(x => x.type === c.type && x.id === c.id)) continue;
       out.push(c);
@@ -1075,7 +1080,7 @@ export class Game {
     } else if (card.type === 'heal') {
       p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.4);
     } else if (card.type === 'coin') {
-      this.runCoins += 40;
+      this.runCoins += 25;
     }
     this.recalc();
     SFX.select();
@@ -1231,17 +1236,17 @@ export class Game {
           const w = pick(cand);
           w.lv++;
           this.announce('기술 강화!', WEAPONS[w.id].name + ' Lv.' + w.lv, '#fbbf24');
-        } else this.runCoins += 60;
+        } else this.runCoins += 30;
       } else if (r < 0.68) {
         const avail = Object.keys(PASSIVES).filter(k => (p.passives[k] || 0) < PASSIVES[k].max);
         if (avail.length) {
           const k = pick(avail);
           this.addPassive(k);
           this.announce('패시브 획득!', PASSIVES[k].name, '#a78bfa');
-        } else this.runCoins += 60;
+        } else this.runCoins += 30;
       } else if (r < 0.88) {
-        this.runCoins += 45;
-        this.announce('보물 상자', '+45 코인', '#fbbf24');
+        this.runCoins += 20;
+        this.announce('보물 상자', '+20 코인', '#fbbf24');
       } else {
         this.runDust += 2;
         this.announce('별의모래!', '+2 별의모래', '#c4b5fd');
@@ -1303,7 +1308,7 @@ export class Game {
     const p = this.player;
 
     this.dropOrbs(e.x, e.y, e.xp, e.shiny ? '#fde68a' : (e.boss ? '#f472b6' : '#38bdf8'));
-    const coins = Math.round((e.def.xp * 0.7 + (e.boss ? 40 : 0) + (e.elite ? 25 : 0) + (e.legend ? 60 : 0)) * (e.shiny ? 4 : 1) * p.coinMul);
+    const coins = (e.def.xp * 0.22 + (e.boss ? 25 : 0) + (e.elite ? 15 : 0) + (e.legend ? 50 : 0)) * (e.shiny ? 4 : 1) * p.coinMul;
     this.runCoins += coins;
     if (e.boss) this.cam.shake = 18;
     if (e.legend) {
@@ -1453,7 +1458,7 @@ export class Game {
 
   buildResult(win) {
     const stageBonus = this.stage.reward || 1;
-    const coins = Math.round((this.runCoins + this.kills * 0.6 + (win ? 250 * stageBonus : 0)) * (win ? 1.15 : 1));
+    const coins = Math.round(this.runCoins + this.kills * 0.12 + (win ? 200 * stageBonus : 0));
     const dust = Math.round(this.runDust + (win ? 6 * stageBonus : 0));
     return {
       win, time: this.time, kills: this.kills, level: this.player.level,
