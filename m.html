@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mobile preview</title>
+<style>
+  html,body{margin:0;height:100%;background:#0a0e18;display:grid;place-items:center;overflow:hidden}
+  iframe{border:1px solid #2a3348;background:#000;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+</style>
+</head>
+<body>
+<script>
+  var p = new URLSearchParams(location.search);
+  var w = +(p.get('w') || 390), h = +(p.get('h') || 844);
+  var f = document.createElement('iframe');
+  f.width = w; f.height = h;
+  f.src = './?mobile=1&t=' + Date.now();
+  document.body.appendChild(f);
+</script>
+</body>
+</html>
