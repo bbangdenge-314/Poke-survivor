@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=11';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=11';
-import { SFX } from './audio.js?v=11';
-import { metaMods, markCaught, markSeen } from './save.js?v=11';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=12';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=12';
+import { SFX } from './audio.js?v=12';
+import { metaMods, markCaught, markSeen } from './save.js?v=12';
 
 const TAU = Math.PI * 2;
 const WORLD = 4600;
@@ -16,6 +16,10 @@ function hash2(x, y) {
   let h = x * 374761393 + y * 668265263;
   h = (h ^ (h >> 13)) * 1274126177;
   return ((h ^ (h >> 16)) >>> 0) / 4294967296;
+}
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
 export class Game {
@@ -1845,11 +1849,28 @@ export class Game {
 
   drawHazards(ctx) {
     for (const h of this.hazards) {
-      ctx.save();
-      ctx.globalAlpha = Math.min(0.35, h.life * 0.2);
-      ctx.fillStyle = h.color;
+      const a = Math.min(0.42, h.life * 0.16);
+      const g = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, h.r);
+      g.addColorStop(0, hexA(h.color, a));
+      g.addColorStop(0.65, hexA(h.color, a * 0.65));
+      g.addColorStop(1, hexA(h.color, 0));
+      ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, TAU); ctx.fill();
+      ctx.save();
+      ctx.strokeStyle = hexA(h.color, 0.35);
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 7]);
+      ctx.beginPath(); ctx.arc(h.x, h.y, h.r * 0.9, 0, TAU); ctx.stroke();
       ctx.restore();
+      const t = performance.now() / 500;
+      for (let i = 0; i < 3; i++) {
+        const ang = t + i * 2.1 + h.x * 0.01;
+        const rr = h.r * (0.3 + 0.4 * ((Math.sin(t + i) + 1) / 2));
+        ctx.fillStyle = hexA(h.color, 0.25);
+        ctx.beginPath();
+        ctx.arc(h.x + Math.cos(ang) * rr, h.y + Math.sin(ang) * rr, 4 + i, 0, TAU);
+        ctx.fill();
+      }
     }
   }
 
@@ -1858,10 +1879,14 @@ export class Game {
       ctx.save();
       if (b.kind === 'flame') {
         ctx.globalCompositeOperation = 'lighter';
-        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r * 2);
-        g.addColorStop(0, '#fff7ed'); g.addColorStop(0.4, b.color); g.addColorStop(1, 'rgba(249,115,22,0)');
+        const rr = b.r * (1.35 + Math.sin(performance.now() / 40 + b.x) * 0.12);
+        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, rr);
+        g.addColorStop(0, 'rgba(255,247,237,0.95)');
+        g.addColorStop(0.30, hexA(b.color, 0.8));
+        g.addColorStop(0.62, 'rgba(249,115,22,0.35)');
+        g.addColorStop(1, 'rgba(249,115,22,0)');
         ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 2, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.arc(b.x, b.y, rr, 0, TAU); ctx.fill();
       } else if (b.kind === 'shadow' || b.kind === 'aura') {
         ctx.shadowColor = b.color; ctx.shadowBlur = 14;
         ctx.fillStyle = b.color;

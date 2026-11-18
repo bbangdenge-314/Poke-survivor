@@ -1,12 +1,12 @@
 /* ============================================================
    POKE SURVIVOR — 부트스트랩 / 입력 / 루프
    ============================================================ */
-import { Game } from './game.js?v=11';
-import { UI } from './ui.js?v=11';
-import { DEX, CHARACTERS, STAGES } from './data.js?v=11';
-import { preload, playCry, setCryEnabled } from './sprites.js?v=11';
-import { initAudio, setSfxEnabled, SFX } from './audio.js?v=11';
-import { getSave, persist, recordRun, toggleSetting } from './save.js?v=11';
+import { Game } from './game.js?v=12';
+import { UI } from './ui.js?v=12';
+import { DEX, CHARACTERS, STAGES } from './data.js?v=12';
+import { preload, playCry, setCryEnabled } from './sprites.js?v=12';
+import { initAudio, setSfxEnabled, SFX } from './audio.js?v=12';
+import { getSave, persist, recordRun, toggleSetting } from './save.js?v=12';
 
 /* ---------- 오류 수집 (검증용) ---------- */
 window.__errors = [];
