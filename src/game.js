@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=7';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=7';
-import { SFX } from './audio.js?v=7';
-import { metaMods, markCaught, markSeen } from './save.js?v=7';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=8';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=8';
+import { SFX } from './audio.js?v=8';
+import { metaMods, markCaught, markSeen } from './save.js?v=8';
 
 const TAU = Math.PI * 2;
 const WORLD = 3000;
@@ -610,7 +610,7 @@ export class Game {
     const def = ENEMIES[key];
     if (!def) return null;
     const p = this.player;
-    const tScale = 1 + this.time / 105;
+    const tScale = 1 + this.time / 140;
     const stageMul = [1, 1.25, 1.6][STAGES.indexOf(this.stage)] || 1;
     let ang, px, py;
     if (opts.x != null) { px = opts.x; py = opts.y; }
@@ -772,7 +772,7 @@ export class Game {
           if (e.atkCd <= 0 && d < 420) {
             e.atkCd = rand(2.2, 3.4);
             const a = Math.atan2(dy, dx);
-            this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 210, vy: Math.sin(a) * 210, r: 8, dmg: e.dmg * 0.7, life: 3, color: '#f472b6' });
+            this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 195, vy: Math.sin(a) * 195, r: 9, dmg: e.dmg * 0.55, life: 3, color: '#f472b6' });
           }
           break;
         }
@@ -792,7 +792,7 @@ export class Game {
             const base = Math.atan2(dy, dx);
             for (let i = 0; i < n; i++) {
               const a = base + (i / n) * TAU;
-              this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 175, vy: Math.sin(a) * 175, r: 10, dmg: e.dmg * 0.55, life: 3.4, color: '#fb7185' });
+              this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * 165, vy: Math.sin(a) * 165, r: 11, dmg: e.dmg * 0.45, life: 3.4, color: '#fb7185' });
             }
             this.rings.push({ x: e.x, y: e.y, r: 10, r1: 120, life: 0.5, max: 0.5, color: '#fb7185', kind: 'enemy', hit: new Set(), dmg: 0 });
           }
@@ -980,7 +980,7 @@ export class Game {
       p.xpNext = this.xpNeeded(p.level);
       this.pendingLevels = (this.pendingLevels || 0) + 1;
       this.floatText(p.x, p.y - 46, 'LEVEL ' + p.level, '#facc15', 1.1);
-      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.03);
+      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.04);
       this.rings.push({ x: p.x, y: p.y, r: 20, r1: 110, life: 0.55, max: 0.55, color: '#facc15', kind: 'heal', hit: new Set(), dmg: 0 });
       SFX.levelup();
       this.checkEvolution();
@@ -1315,7 +1315,7 @@ export class Game {
     } else if (e.elite) {
       this.pickups.push({ x: e.x, y: e.y, kind: 'chest', life: 90, bob: 0 });
     } else {
-      if (Math.random() < 0.025 + this.meta.luck * 0.25) this.pickups.push({ x: e.x, y: e.y, kind: 'heart', life: 20, bob: 0 });
+      if (Math.random() < 0.03 + this.meta.luck * 0.25) this.pickups.push({ x: e.x, y: e.y, kind: 'heart', life: 20, bob: 0 });
       if (e.shiny) {
         this.shiniesKilled++;
         this.runDust += 1;
@@ -1503,6 +1503,15 @@ export class Game {
       }
     }
     let best = null, bd = 1e9;
+    for (const b of this.ebullets) {
+      const dx = p.x - b.x, dy = p.y - b.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < 170) {
+        const w = (170 - d) / 170;
+        fx += dx / d * w * 1.6;
+        fy += dy / d * w * 1.6;
+      }
+    }
     for (const o of this.orbs) {
       const dd = dist2(o.x, o.y, p.x, p.y);
       if (dd < bd) { bd = dd; best = o; }

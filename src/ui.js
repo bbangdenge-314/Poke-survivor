@@ -1,9 +1,9 @@
 /* ============================================================
    UI — 화면(타이틀/선택/상점/도감/결과) 및 HUD
    ============================================================ */
-import { CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=7';
-import { spriteURL, getSprite } from './sprites.js?v=7';
-import { getSave, upgradeCost, buyUpgrade, isUnlocked, unlockChar, metaMods } from './save.js?v=7';
+import { CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=8';
+import { spriteURL, getSprite } from './sprites.js?v=8';
+import { getSave, upgradeCost, buyUpgrade, isUnlocked, unlockChar, metaMods } from './save.js?v=8';
 
 const $ = id => document.getElementById(id);
 
