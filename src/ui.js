@@ -1,9 +1,9 @@
 /* ============================================================
    UI — 화면(타이틀/선택/상점/도감/결과) 및 HUD
    ============================================================ */
-import { CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES, TYPE_COLORS, BRANCH_NAMES } from './data.js';
-import { spriteURL, getSprite } from './sprites.js';
-import { getSave, upgradeCost, buyUpgrade, isUnlocked, unlockChar, metaMods } from './save.js';
+import { CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=3';
+import { spriteURL, getSprite } from './sprites.js?v=3';
+import { getSave, upgradeCost, buyUpgrade, isUnlocked, unlockChar, metaMods } from './save.js?v=3';
 
 const $ = id => document.getElementById(id);
 
@@ -324,7 +324,8 @@ export class UI {
     const list = $('cardList');
     list.innerHTML = cards.map((c, i) => {
       const kind = c.type === 'weapon' ? '기술' : c.type === 'passive' ? '패시브' : '보너스';
-      const lvTxt = c.lv === 0 ? 'NEW' : `Lv.${c.lv} → ${c.lv + 1}`;
+      const lvTxt = c.type === 'heal' || c.type === 'coin' ? '즉시'
+        : c.isNew ? 'Lv.1 습득' : `Lv.${c.lv} → ${c.lv + 1}`;
       return `<button class="card" data-i="${i}" style="--cc:${c.color || '#60a5fa'}">
         <div class="c-top">
           <div class="c-icon">${c.icon}</div>
