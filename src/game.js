@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=13';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=13';
-import { SFX } from './audio.js?v=13';
-import { metaMods, markCaught, markSeen } from './save.js?v=13';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=14';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=14';
+import { SFX } from './audio.js?v=14';
+import { metaMods, markCaught, markSeen } from './save.js?v=14';
 
 const TAU = Math.PI * 2;
 const WORLD = 4600;
@@ -60,7 +60,7 @@ export class Game {
     this.char = char;
     this.stage = stage;
     this.meta = meta;
-    this.shiny = !!opts.shiny;
+    this.shiny = !!opts.shiny || Math.random() < (0.015 + this.meta.shinyChance);
     this.autoPick = !!opts.auto;
     this.time = 0;
     this.runTimeLimit = stage.duration;

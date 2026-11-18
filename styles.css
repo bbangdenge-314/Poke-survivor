@@ -299,9 +299,11 @@ button{font-family:inherit;cursor:pointer;border:0;color:inherit}
   .timer{font-size:19px;letter-spacing:0}
   .stage-tag{display:none}
   .hud-right{gap:4px}
-  .stat-chip{min-width:34px;padding:3px 6px}
-  .stat-chip b{font-size:11.5px}
+  .stat-chip{min-width:34px;padding:3px 6px;display:flex;align-items:center;justify-content:center;gap:2px}
+  .stat-chip b{font-size:11.5px;display:inline}
   .stat-chip span{display:none}
+  .stat-chip.kills::before{content:'☠';font-size:9px;opacity:.75}
+  .stat-chip.coins::before{content:'🪙';font-size:8px}
   .icon-btn{width:34px;height:34px;border-radius:10px}
   .weapon-row{max-width:60vw;bottom:calc(24px + env(safe-area-inset-bottom))}
   .wp{width:29px;height:29px;font-size:13px}
