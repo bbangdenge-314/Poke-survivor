@@ -1,13 +1,13 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=10';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=10';
-import { SFX } from './audio.js?v=10';
-import { metaMods, markCaught, markSeen } from './save.js?v=10';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=11';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=11';
+import { SFX } from './audio.js?v=11';
+import { metaMods, markCaught, markSeen } from './save.js?v=11';
 
 const TAU = Math.PI * 2;
-const WORLD = 3000;
+const WORLD = 4600;
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = arr => arr[(Math.random() * arr.length) | 0];
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -1677,7 +1677,8 @@ export class Game {
   }
 
   drawSpriteEntity(ctx, x, y, visibleH, id, shiny, facing, optsNow = {}) {
-    const img = getSprite(id, shiny);
+    let img = getSprite(id, shiny);
+    if (!img && shiny) { loadSprite(id, true); img = getSprite(id, false); }
     const bob = optsNow.bob || 0;
     const flash = optsNow.flash || 0;
     const alpha = optsNow.alpha == null ? 1 : optsNow.alpha;
