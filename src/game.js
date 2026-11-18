@@ -1562,53 +1562,58 @@ export class Game {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
 
-    const T = 128;
-    const x0 = Math.floor(sx / T), x1 = Math.ceil((sx + W) / T);
-    const y0 = Math.floor(sy / T), y1 = Math.ceil((sy + H) / T);
-    ctx.fillStyle = st.ground[0];
-    ctx.globalAlpha = 0.5;
-    for (let ty = y0; ty <= y1; ty++) {
-      for (let tx = x0; tx <= x1; tx++) {
-        const h = hash2(tx, ty);
-        if (h < 0.45) {
-          const px = tx * T - sx, py = ty * T - sy;
-          ctx.fillStyle = h < 0.2 ? st.ground[1] : st.ground[0];
-          ctx.fillRect(px, py, T - 1, T - 1);
-        }
-      }
-    }
-    ctx.globalAlpha = 1;
+    // 타일 텍스처(패턴) 스크롤
+    const pat = this.groundPattern(st);
+    const ox = -(((sx % 256) + 256) % 256);
+    const oy = -(((sy % 256) + 256) % 256);
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.fillStyle = pat;
+    ctx.fillRect(0, 0, W + 256, H + 256);
+    ctx.restore();
 
     // 장식물
+    const T = 148;
+    const x0 = Math.floor(sx / T), x1 = Math.ceil((sx + W) / T);
+    const y0 = Math.floor(sy / T), y1 = Math.ceil((sy + H) / T);
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
-        const h = hash2(tx * 3 + 7, ty * 5 + 11);
-        if (h > 0.55) continue;
-        const px = tx * T - sx + h * T * 0.8 + 12;
-        const py = ty * T - sy + hash2(tx + 99, ty + 7) * T * 0.8 + 12;
+        const h = hash2(tx * 7 + 13, ty * 11 + 5);
+        if (h > 0.62) continue;
+        const jx = hash2(tx + 33, ty + 71), jy = hash2(tx + 91, ty + 17);
+        const px = tx * T - sx + jx * T * 0.9 + 14;
+        const py = ty * T - sy + jy * T * 0.9 + 14;
         const kind = st.deco;
         ctx.save();
-        ctx.globalAlpha = 0.55;
         if (kind === 'grass') {
-          ctx.strokeStyle = st.accent;
+          const n = 2 + ((h * 10) | 0) % 3;
+          ctx.strokeStyle = h < 0.28 ? '#7dd3a0' : '#3f9e6a';
+          ctx.globalAlpha = 0.35 + h * 0.3;
           ctx.lineWidth = 2;
-          for (let i = 0; i < 3; i++) {
+          ctx.lineCap = 'round';
+          for (let i = 0; i < n; i++) {
+            const bx = px + i * 6 - n * 2;
             ctx.beginPath();
-            ctx.moveTo(px + i * 5, py);
-            ctx.quadraticCurveTo(px + i * 5 - 3, py - 12, px + i * 5 + 4, py - 18);
+            ctx.moveTo(bx, py);
+            ctx.quadraticCurveTo(bx - 4, py - 10, bx + 5, py - 17 - h * 10);
             ctx.stroke();
           }
         } else if (kind === 'rock') {
-          ctx.fillStyle = '#4b4b5c';
+          ctx.globalAlpha = 0.6;
+          ctx.fillStyle = h < 0.3 ? '#5b5b6e' : '#3a3a48';
           ctx.beginPath();
-          ctx.ellipse(px, py, 10, 7, 0, 0, TAU);
+          ctx.ellipse(px, py, 9 + h * 8, 6 + h * 5, h * 3, 0, TAU);
           ctx.fill();
+          ctx.globalAlpha = 0.25; ctx.fillStyle = '#a5b4fc';
+          ctx.beginPath(); ctx.ellipse(px - 2, py - 3, 4, 2.5, 0, 0, TAU); ctx.fill();
         } else {
-          ctx.fillStyle = '#e9d5ff';
-          ctx.beginPath();
-          ctx.arc(px, py, 2, 0, TAU);
-          ctx.fill();
-          if (h < 0.1) { ctx.globalAlpha = 0.25; ctx.beginPath(); ctx.arc(px, py, 8, 0, TAU); ctx.fill(); }
+          ctx.globalAlpha = 0.55 + h * 0.3;
+          ctx.fillStyle = h < 0.2 ? '#fef08a' : '#e9d5ff';
+          ctx.beginPath(); ctx.arc(px, py, 1.8 + h * 2, 0, TAU); ctx.fill();
+          if (h < 0.12) {
+            ctx.globalAlpha = 0.2;
+            ctx.beginPath(); ctx.arc(px, py, 9, 0, TAU); ctx.fill();
+          }
         }
         ctx.restore();
       }
@@ -1620,6 +1625,35 @@ export class Game {
     ctx.lineWidth = 6;
     ctx.strokeRect(-sx, -sy, WORLD, WORLD);
     ctx.restore();
+  }
+
+  groundPattern(stage) {
+    if (!this._groundPat) this._groundPat = {};
+    if (this._groundPat[stage.key]) return this._groundPat[stage.key];
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const x = c.getContext('2d');
+    x.fillStyle = stage.ground[1];
+    x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 30; i++) {
+      const px = Math.random() * 256, py = Math.random() * 256, r = 24 + Math.random() * 58;
+      const g2 = x.createRadialGradient(px, py, 0, px, py, r);
+      g2.addColorStop(0, stage.ground[0]);
+      g2.addColorStop(1, 'rgba(0,0,0,0)');
+      x.globalAlpha = 0.5;
+      x.fillStyle = g2;
+      x.beginPath(); x.arc(px, py, r, 0, TAU); x.fill();
+    }
+    x.globalAlpha = 0.22;
+    for (let i = 0; i < 240; i++) {
+      x.fillStyle = Math.random() < 0.55 ? '#000' : stage.accent;
+      const s = Math.random() < 0.9 ? 2 : 3;
+      x.fillRect(Math.random() * 256, Math.random() * 256, s, s);
+    }
+    x.globalAlpha = 1;
+    const pat = this.ctx.createPattern(c, 'repeat');
+    this._groundPat[stage.key] = pat;
+    return pat;
   }
 
   drawSpriteEntity(ctx, x, y, size, id, shiny, facing, optsNow = {}) {
@@ -1653,8 +1687,16 @@ export class Game {
 
   drawPlayer(ctx) {
     const p = this.player;
-    const size = 62 * p.scale;
+    const size = 132 * p.scale;
     const id = this.currentStage();
+    // 플레이어 발치 글로우
+    ctx.save();
+    const gg = ctx.createRadialGradient(p.x, p.y + 22, 0, p.x, p.y + 22, 62);
+    gg.addColorStop(0, 'rgba(147,197,253,0.20)');
+    gg.addColorStop(1, 'rgba(147,197,253,0)');
+    ctx.fillStyle = gg;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 22, 62, 30, 0, 0, TAU); ctx.fill();
+    ctx.restore();
     if (p.shiny) {
       const t = performance.now() / 300;
       for (let i = 0; i < 3; i++) {
@@ -1689,7 +1731,7 @@ export class Game {
   }
 
   drawEnemy(ctx, e) {
-    const size = e.def.r * 3.0 * (e.elite ? 1.32 : 1) * (e.boss ? 1.25 : 1);
+    const size = e.def.r * 6.0 * (e.elite ? 1.28 : 1) * (e.boss ? 1.05 : 1);
     this.drawSpriteEntity(ctx, e.x, e.y, size, e.def.id, e.shiny, e.facing, {
       bob: e.bob, flash: e.flash, color: e.typeColor || '#f87171'
     });

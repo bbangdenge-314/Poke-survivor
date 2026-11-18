@@ -96,8 +96,7 @@ export class UI {
         ${owned ? '<span class="shiny-dot">✦</span>' : ''}
         <img loading="lazy" src="${spriteURL(c.id, false)}" alt="${c.chain[0].name}">
         <div class="cc-name">${c.chain[0].name}</div>
-        <div class="cc-rank ${rankCls}">${c.rank}</div>
-        ${unlocked ? '' : `<div class="cc-lock">🔒<small>${c.cost} 코인</small></div>`}
+        <div class="cc-rank ${rankCls}">${unlocked ? c.rank : `<span style="color:#fbbf24">🔒 ${c.cost}</span>`}</div>
       </button>`;
     }).join('');
 
