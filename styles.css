@@ -26,7 +26,8 @@ button{font-family:inherit;cursor:pointer;border:0;color:inherit}
 .btn.sm{padding:9px 13px;font-size:13px;border-radius:11px}
 .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
 .icon-btn{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid var(--line);
-  color:#fff;font-size:13px;font-weight:900;display:grid;place-items:center;backdrop-filter:blur(8px)}
+  color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:4px;backdrop-filter:blur(8px)}
+.icon-btn .pbar{display:block;width:4px;height:14px;border-radius:1.5px;background:#fff}
 .icon-btn:hover{background:rgba(255,255,255,.16)}
 
 /* ---------- 공통 화면 ---------- */

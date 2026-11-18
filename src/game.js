@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=16';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=16';
-import { SFX } from './audio.js?v=16';
-import { metaMods, markCaught, markSeen } from './save.js?v=16';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=17';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=17';
+import { SFX } from './audio.js?v=17';
+import { metaMods, markCaught, markSeen } from './save.js?v=17';
 
 const TAU = Math.PI * 2;
 const WORLD = 4600;
@@ -48,6 +48,7 @@ export class Game {
     this.H = this.cv.clientHeight || innerHeight;
     this.cv.width = Math.round(this.W * dpr);
     this.cv.height = Math.round(this.H * dpr);
+    this.zoom = clamp(Math.min(this.W, this.H) / 980, 0.62, 1);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.ctx.imageSmoothingEnabled = false;
   }
@@ -134,8 +135,8 @@ export class Game {
     this.player.hp = this.player.maxHp;
     markSeen(char.id);
     this.seenIds.add(char.id);
-    this.cam.x = this.player.x - this.W / 2;
-    this.cam.y = this.player.y - this.H / 2;
+    this.cam.x = this.player.x - (this.W / this.zoom) / 2;
+    this.cam.y = this.player.y - (this.H / this.zoom) / 2;
     this.announce('모험 시작!', '이동만 하면 자동 공격 · 레벨업으로 기술을 고르세요', '#93c5fd');
     if (this.hooks.onRunStart) this.hooks.onRunStart(this);
     return this;
@@ -261,8 +262,9 @@ export class Game {
     this.updateTimeline();
 
     /* 카메라 */
-    const cx = clamp(p.x - this.W / 2, 0, WORLD - this.W);
-    const cy = clamp(p.y - this.H / 2, 0, WORLD - this.H);
+    const vw = this.W / this.zoom, vh = this.H / this.zoom;
+    const cx = clamp(p.x - vw / 2, 0, WORLD - vw);
+    const cy = clamp(p.y - vh / 2, 0, WORLD - vh);
     this.cam.x += (cx - this.cam.x) * Math.min(1, dt * 9);
     this.cam.y += (cy - this.cam.y) * Math.min(1, dt * 9);
     this.cam.shake = Math.max(0, this.cam.shake - dt * 22);
@@ -622,7 +624,7 @@ export class Game {
       // 화면 밖에서 스폰
       const margin = 90;
       const side = (Math.random() * 4) | 0;
-      const vw = this.W, vh = this.H;
+      const vw = this.W / this.zoom, vh = this.H / this.zoom;
       if (side === 0) { px = p.x - vw / 2 - margin; py = p.y + rand(-vh / 2, vh / 2); }
       else if (side === 1) { px = p.x + vw / 2 + margin; py = p.y + rand(-vh / 2, vh / 2); }
       else if (side === 2) { px = p.x + rand(-vw / 2, vw / 2); py = p.y - vh / 2 - margin; }
@@ -1540,26 +1542,33 @@ export class Game {
   render() {
     const ctx = this.ctx;
     if (this.state === 'idle' || !this.player) return;
-    const W = this.W, H = this.H;
+    const W = this.W, H = this.H, zoom = this.zoom;
+    const vw = W / zoom, vh = H / zoom;
     const sh = this.cam.shake;
     const sx = this.cam.x + (sh ? rand(-sh, sh) : 0);
     const sy = this.cam.y + (sh ? rand(-sh, sh) : 0);
 
     ctx.imageSmoothingEnabled = false;
-    this.drawGround(ctx, sx, sy);
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, this.stage.sky[0]);
+    sky.addColorStop(1, this.stage.sky[1]);
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
 
     ctx.save();
+    ctx.scale(zoom, zoom);
     ctx.translate(-sx, -sy);
 
+    this.drawGround(ctx, sx, sy, vw, vh);
     this.drawPickups(ctx);
     this.drawOrbs(ctx);
 
     const sorted = [...this.enemies].sort((a, b) => a.y - b.y);
     let drawn = 0;
     for (const e of sorted) {
-      if (e.x < sx - 90 || e.x > sx + W + 90 || e.y < sy - 90 || e.y > sy + H + 90) continue;
+      if (e.x < sx - 120 || e.x > sx + vw + 120 || e.y < sy - 120 || e.y > sy + vh + 120) continue;
       this.drawEnemy(ctx, e);
-      if (++drawn > 220) break;
+      if (++drawn > 240) break;
     }
     this.drawPlayer(ctx);
     this.drawOrbits(ctx);
@@ -1574,36 +1583,23 @@ export class Game {
     this.drawHUDCanvas(ctx);
   }
 
-  drawGround(ctx, sx, sy) {
-    const W = this.W, H = this.H;
+  drawGround(ctx, sx, sy, vw, vh) {
     const st = this.stage;
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, st.sky[0]);
-    g.addColorStop(1, st.sky[1]);
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-
-    // 타일 텍스처(패턴) 스크롤
     const pat = this.groundPattern(st);
-    const ox = -(((sx % 256) + 256) % 256);
-    const oy = -(((sy % 256) + 256) % 256);
-    ctx.save();
-    ctx.translate(ox, oy);
     ctx.fillStyle = pat;
-    ctx.fillRect(0, 0, W + 256, H + 256);
-    ctx.restore();
+    ctx.fillRect(sx, sy, vw, vh);
 
     // 장식물
     const T = 148;
-    const x0 = Math.floor(sx / T), x1 = Math.ceil((sx + W) / T);
-    const y0 = Math.floor(sy / T), y1 = Math.ceil((sy + H) / T);
+    const x0 = Math.floor(sx / T), x1 = Math.ceil((sx + vw) / T);
+    const y0 = Math.floor(sy / T), y1 = Math.ceil((sy + vh) / T);
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
         const h = hash2(tx * 7 + 13, ty * 11 + 5);
         if (h > 0.62) continue;
         const jx = hash2(tx + 33, ty + 71), jy = hash2(tx + 91, ty + 17);
-        const px = tx * T - sx + jx * T * 0.9 + 14;
-        const py = ty * T - sy + jy * T * 0.9 + 14;
+        const px = tx * T + jx * T * 0.9 + 14;
+        const py = ty * T + jy * T * 0.9 + 14;
         const kind = st.deco;
         ctx.save();
         if (kind === 'grass') {
@@ -1644,7 +1640,7 @@ export class Game {
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,0.10)';
     ctx.lineWidth = 6;
-    ctx.strokeRect(-sx, -sy, WORLD, WORLD);
+    ctx.strokeRect(0, 0, WORLD, WORLD);
     ctx.restore();
   }
 
