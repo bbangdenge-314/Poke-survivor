@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=4';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=4';
-import { SFX } from './audio.js?v=4';
-import { metaMods, markCaught, markSeen } from './save.js?v=4';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=5';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=5';
+import { SFX } from './audio.js?v=5';
+import { metaMods, markCaught, markSeen } from './save.js?v=5';
 
 const TAU = Math.PI * 2;
 const WORLD = 3000;
@@ -641,7 +641,7 @@ export class Game {
       x: px, y: py, r: def.r * (elite ? 1.45 : 1) * (isBoss ? 1 : 1),
       hp, maxHp: hp, spd: def.spd * (elite ? 0.9 : 1),
       typeColor: TYPE_COLORS[(DEX[def.id] && DEX[def.id].t[0]) || '노말'] || '#f87171',
-      dmg: def.dmg * (isBoss ? 1 : tScale * 0.55 + 0.55) * stageMul * (elite ? 1.3 : 1),
+      dmg: def.dmg * (isBoss ? 1 : tScale * 0.45 + 0.55) * stageMul * (elite ? 1.3 : 1),
       xp: def.xp * (elite ? 8 : 1) * (shiny ? 4 : 1) * (isBoss ? 3 : 1),
       ai: def.ai, boss: isBoss, final: !!def.final, legend: isLegend,
       elite, shiny, hitCd: 0, flash: 0, slow: 0, freeze: 0, stun: 0, fear: 0,
@@ -1488,32 +1488,37 @@ export class Game {
 
   botInput(t, opts = {}) {
     const p = this.player;
-    let best = null, bd = 1e9;
+    if (opts.idle) return { x: 0, y: 0 };
+    let fx = 0, fy = 0;
     for (const e of this.enemies) {
       if (e.dead) continue;
-      const d = dist2(e.x, e.y, p.x, p.y);
-      if (d < bd) { bd = d; best = e; }
+      const dx = p.x - e.x, dy = p.y - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < 230) {
+        const w = (230 - d) / 230;
+        fx += dx / d * w * w * 2;
+        fy += dy / d * w * w * 2;
+      }
     }
-    if (opts.idle) return { x: 0, y: 0 };
-    if (!best) return { x: Math.sin(t) * 0.4, y: Math.cos(t * 0.7) * 0.4 };
-    const d = Math.sqrt(bd);
-    if (d < 140) {
-      const ax = p.x - best.x, ay = p.y - best.y;
-      const l = Math.hypot(ax, ay) || 1;
-      return { x: ax / l, y: ay / l };
-    }
-    // 경험치 구슬로 이동
-    let orb = null, od = 1e9;
+    let best = null, bd = 1e9;
     for (const o of this.orbs) {
       const dd = dist2(o.x, o.y, p.x, p.y);
-      if (dd < od) { od = dd; orb = o; }
+      if (dd < bd) { bd = dd; best = o; }
     }
-    if (orb && od > 4000) {
-      const ax = orb.x - p.x, ay = orb.y - p.y;
-      const l = Math.hypot(ax, ay) || 1;
-      return { x: ax / l * 0.8, y: ay / l * 0.8 };
+    if (best && bd > 2000) {
+      const d = Math.sqrt(bd);
+      fx += (best.x - p.x) / d * 0.9;
+      fy += (best.y - p.y) / d * 0.9;
     }
-    return { x: Math.cos(t * 0.6) * 0.5, y: Math.sin(t * 0.9) * 0.5 };
+    // 월드 경계 회피
+    const m = 220;
+    if (p.x < m) fx += (m - p.x) / m;
+    if (p.x > WORLD - m) fx -= (p.x - (WORLD - m)) / m;
+    if (p.y < m) fy += (m - p.y) / m;
+    if (p.y > WORLD - m) fy -= (p.y - (WORLD - m)) / m;
+    const l = Math.hypot(fx, fy);
+    if (l < 0.02) return { x: Math.cos(t * 0.7) * 0.5, y: Math.sin(t * 0.9) * 0.5 };
+    return { x: fx / l, y: fy / l };
   }
 
   /* ================= 렌더 ================= */
