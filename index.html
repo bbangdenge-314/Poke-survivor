@@ -1,77 +1,99 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>포켓 서바이버</title>
-<style>
-*{box-sizing:border-box}body{margin:0;background:#101827;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;overflow:hidden}#game{display:block;width:100vw;height:100dvh;touch-action:none;background:radial-gradient(ellipse at center,#243b55,#101827 75%)}.hud{position:fixed;top:12px;left:12px;right:12px;display:flex;gap:8px;justify-content:space-between;pointer-events:none}.panel{background:#101827cc;border:1px solid #ffffff25;border-radius:12px;padding:8px 12px;font-size:13px;backdrop-filter:blur(8px)}.bar{height:8px;background:#334155;border-radius:9px;overflow:hidden;margin-top:5px}.fill{height:100%;width:100%;background:#34d399}.xp{position:fixed;left:12px;right:12px;bottom:12px;height:10px;border-radius:10px;background:#334155;overflow:hidden}.xp>div{height:100%;width:0;background:#60a5fa;transition:width .15s}.hint{position:fixed;bottom:30px;left:0;right:0;text-align:center;color:#cbd5e1;font-size:12px;pointer-events:none}.overlay{position:fixed;inset:0;background:#08111ddd;display:flex;align-items:center;justify-content:center;padding:20px}.box{width:min(520px,100%);background:#172438;border:1px solid #ffffff25;border-radius:20px;padding:24px;text-align:center;box-shadow:0 20px 70px #0008}.box h1{margin:0 0 8px;font-size:28px}.box p{color:#cbd5e1;line-height:1.6}.choices{display:grid;gap:10px;margin-top:18px}.choice,button{border:0;border-radius:12px;padding:13px 16px;background:#2563eb;color:white;font-weight:700;font-size:15px;cursor:pointer}.choice{background:#263b58;text-align:left;border:1px solid #ffffff20}.choice small{display:block;color:#cbd5e1;font-weight:400;margin-top:4px}.hidden{display:none}.topline{display:flex;justify-content:space-between;gap:8px}.tag{color:#93c5fd;font-size:12px;font-weight:700}.skillbtn{position:fixed;right:16px;bottom:38px;z-index:3;width:92px;height:76px;border-radius:18px;background:#1d4ed8;border:2px solid #93c5fd;box-shadow:0 5px 18px #0008;font-size:13px;line-height:1.35}.skillbtn:disabled{opacity:.55;filter:grayscale(.6)}.skillbtn span{display:block;font-size:11px;font-weight:500;color:#dbeafe}
-</style></head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>포켓 서바이버 · Poke Survivor</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23fff' stroke='%230b1020' stroke-width='8'/><path d='M4 50h92' stroke='%230b1020' stroke-width='10'/><circle cx='50' cy='50' r='15' fill='%23ef4444' stroke='%230b1020' stroke-width='6'/></svg>">
+</head>
 <body>
-<canvas id="game"></canvas>
-<div class="hud">
- <div class="panel" style="min-width:130px"><div class="topline"><b>❤️ <span id="hp">100</span></b><span id="level">Lv. 1</span></div><div class="bar"><div class="fill" id="hpbar"></div></div></div>
- <div class="panel" style="text-align:right"><b id="time">00:00</b><div>처치 <b id="kills">0</b></div></div>
+<canvas id="cv"></canvas>
+
+<!-- ================= HUD ================= -->
+<div id="hud" class="hidden">
+  <div class="hud-top">
+    <div class="hud-left">
+      <div class="portrait"><img id="hudPortrait" alt=""></div>
+      <div class="hud-bars">
+        <div class="hud-line"><span id="hudName">피카츄</span><span id="hudLevel" class="lvl">Lv.1</span></div>
+        <div class="bar hp"><i id="hpBar"></i><span id="hpText">100 / 100</span></div>
+      </div>
+    </div>
+    <div class="hud-center">
+      <div class="timer" id="timer">00:00</div>
+      <div class="stage-tag" id="stageTag">관동 초원</div>
+    </div>
+    <div class="hud-right">
+      <div class="stat-chip"><b id="killCount">0</b><span>처치</span></div>
+      <div class="stat-chip gold"><b id="coinCount">0</b><span>코인</span></div>
+      <button id="pauseBtn" class="icon-btn" aria-label="일시정지">❚❚</button>
+    </div>
+  </div>
+  <div id="bossBar" class="boss-bar hidden">
+    <div class="boss-name"><b id="bossName">BOSS</b><span id="bossHpText"></span></div>
+    <div class="bar boss"><i id="bossFill"></i></div>
+  </div>
+  <div class="weapon-row" id="weaponRow"></div>
+  <div class="xp-wrap"><div class="xp-bar"><i id="xpBar"></i></div><span id="xpText">0%</span></div>
 </div>
-<div class="xp"><div id="xpbar"></div></div><button class="skillbtn" id="skillBtn">⚡ 고유 기술<span id="skillTimer">준비 완료</span></button><div class="hint" id="hint">WASD / 방향키 또는 화면 드래그로 이동 · 공격은 자동!</div>
-<div class="overlay" id="start"><div class="box"><div class="tag">MONSTER SURVIVOR · 시즌 2</div><h1>⚡ 포켓 서바이버</h1><p>함께 모험할 포켓몬을 선택해!</p><div class="choices" id="pokemonChoices"></div><p>PC: WASD / 방향키<br>모바일: 화면 어디든 누른 뒤 원하는 방향으로 끌기</p><button id="startBtn">모험 시작!</button></div></div>
-<div class="overlay hidden" id="levelup"><div class="box"><div class="tag">LEVEL UP!</div><h1>✨ 새로운 능력 선택</h1><p>하나를 골라 더 강해지자!</p><div class="choices" id="choices"></div></div></div>
-<div class="overlay hidden" id="over"><div class="box"><div class="tag">GAME OVER</div><h1>모험 종료!</h1><p id="result"></p><button id="again">다시 도전</button></div></div>
-<script>
-(()=>{
-const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');let W,H,dpr,raf,last=0,elapsed=0,kills=0,running=false,paused=false,keys={},pointer=null;
-const $=id=>document.getElementById(id);
-function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
-let player,enemies,orbs,shots,particles,spawnTimer,shotTimer,stats,bossSpawned=false,skillCooldown=0,skillEffects=[];
-const pokemon=[
-{name:'피카츄',emoji:'⚡',color:'#facc15',hp:100,speed:240,damage:25,desc:'빠른 이동 · 균형 잡힌 공격'},
-{name:'꼬부기',emoji:'💧',color:'#38bdf8',hp:130,speed:215,damage:23,desc:'높은 체력 · 단단한 생존력'},
-{name:'파이리',emoji:'🔥',color:'#fb923c',hp:90,speed:225,damage:32,desc:'강력한 공격 · 낮은 체력'}
-];
-let selectedPokemon=0,evolved=false;
-const skills=[['강철의 의지','최대 체력 +25',s=>{s.maxHp+=25;s.hp=Math.min(s.maxHp,s.hp+25)}],['빠른 발걸음','이동 속도 +15%',s=>s.speed*=1.15],['강력한 한 방','공격력 +30%',s=>s.damage*=1.3],['연속 발사','투사체 +1개',s=>s.count++],['날카로운 감각','공격 속도 +20%',s=>s.cooldown*=.8],['튼튼한 회복','체력 30 회복',s=>s.hp=Math.min(s.maxHp,s.hp+30)]];
-function reset(){elapsed=0;kills=0;spawnTimer=0;shotTimer=0;evolved=false;bossSpawned=false;skillCooldown=0;skillEffects=[];const mon=pokemon[selectedPokemon];player={x:W/2,y:H/2,r:15,hp:mon.hp,maxHp:mon.hp,speed:mon.speed,damage:mon.damage,count:1,cooldown:.65,inv:0};enemies=[];orbs=[];shots=[];particles=[];stats={xp:0,next:5,level:1};updateHud()}
-function updateHud(){$('skillBtn').disabled=skillCooldown>0;$('skillTimer').textContent=skillCooldown>0?skillCooldown.toFixed(1)+'초':'준비 완료';$('hp').textContent=Math.ceil(player.hp);$('hpbar').style.width=Math.max(0,player.hp/player.maxHp*100)+'%';$('level').textContent='Lv. '+stats.level;$('kills').textContent=kills;$('xpbar').style.width=stats.xp/stats.next*100+'%';$('time').textContent=fmt(elapsed)}
-function fmt(t){return String(Math.floor(t/60)).padStart(2,'0')+':'+String(Math.floor(t%60)).padStart(2,'0')}
-function spawn(){let a=Math.random()*Math.PI*2,d=Math.max(W,H)*.62+50,x=player.x+Math.cos(a)*d,y=player.y+Math.sin(a)*d;let tough=1+Math.floor(elapsed/45);if(elapsed>=60&&!bossSpawned){bossSpawned=true;enemies.push({x,y,r:29,hp:650,maxHp:650,speed:34,color:'#7c3aed',kind:'boss',boss:true,damage:22});return}const kinds=[{kind:'bat',r:13,hp:28,speed:78,color:'#8b5cf6'},{kind:'sprout',r:14,hp:38,speed:42,color:'#4ade80'},{kind:'imp',r:12,hp:24,speed:92,color:'#fb7185'}];const k=kinds[Math.floor(Math.random()*kinds.length)];const hp=k.hp+tough*8;enemies.push({x,y,r:k.r+Math.min(tough,4),hp,maxHp:hp,speed:k.speed+Math.min(elapsed*.25,28),color:k.color,kind:k.kind,damage:12})}
-function shoot(){if(!enemies.length)return;let targets=[...enemies].sort((a,b)=>dist2(a,player)-dist2(b,player)).slice(0,player.count);for(let e of targets){let dx=e.x-player.x,dy=e.y-player.y,l=Math.hypot(dx,dy)||1;shots.push({x:player.x,y:player.y,vx:dx/l*430,vy:dy/l*430,r:5,damage:player.damage,life:1.3})}}
-function dist2(a,b){return (a.x-b.x)**2+(a.y-b.y)**2}
-function levelUp(){paused=true;let pool=[...skills].sort(()=>Math.random()-.5).slice(0,3);$('choices').innerHTML='';pool.forEach(([name,desc,fn])=>{let b=document.createElement('button');b.className='choice';b.innerHTML=name+'<small>'+desc+'</small>';b.onclick=()=>{fn(player);stats.level++;stats.xp-=stats.next;stats.next=Math.ceil(stats.next*1.35);if(stats.level>=5&&!evolved){evolved=true;player.r+=4;player.damage*=1.5;player.maxHp+=25;player.hp=Math.min(player.maxHp,player.hp+25);$('hint').textContent=pokemon[selectedPokemon].name+' 진화 완료! 공격력이 크게 상승했다!';burst(player.x,player.y,'#fef08a',28)}$('levelup').classList.add('hidden');paused=false;updateHud()};$('choices').appendChild(b)});$('levelup').classList.remove('hidden')}
-function activateSkill(){if(!running||paused||skillCooldown>0)return;skillCooldown=8;const px=player.x,py=player.y,targets=[...enemies].sort((a,b)=>dist2(a,player)-dist2(b,player));if(selectedPokemon===0){skillEffects.push({type:'thunder',x:px,y:py,r:165,life:.55,max:.55});for(const e of enemies){if(Math.hypot(e.x-px,e.y-py)<165)e.hp-=player.damage*3}burst(px,py,'#fde047',32)}else if(selectedPokemon===1){const e=targets[0];if(e){const dx=e.x-px,dy=e.y-py,l=Math.hypot(dx,dy)||1;skillEffects.push({type:'water',x:px,y:py,dx:dx/l,dy:dy/l,life:.45,max:.45});for(const foe of enemies){const vx=foe.x-px,vy=foe.y-py,along=vx*dx/l+vy*dy/l,side=Math.abs(vx*dy/l-vy*dx/l);if(along>0&&along<330&&side<34)foe.hp-=player.damage*2.6}}}else{let e=targets[0],dx=e?e.x-px:1,dy=e?e.y-py:0,l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;skillEffects.push({type:'flame',x:px,y:py,dx,dy,life:.5,max:.5});for(const foe of enemies){const vx=foe.x-px,vy=foe.y-py,d=Math.hypot(vx,vy),dot=(vx*dx+vy*dy)/(d||1);if(d<205&&dot>.55)foe.hp-=player.damage*2.8}}updateHud()}
-function burst(x,y,color,n=6){for(let i=0;i<n;i++){let a=Math.random()*Math.PI*2,v=30+Math.random()*100;particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:.35,color})}}
-function update(dt){if(!running||paused)return;elapsed+=dt;skillCooldown=Math.max(0,skillCooldown-dt);for(const fx of skillEffects)fx.life-=dt;skillEffects=skillEffects.filter(fx=>fx.life>0);player.inv=Math.max(0,player.inv-dt);let dx=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0),dy=(keys.ArrowDown||keys.s?1:0)-(keys.ArrowUp||keys.w?1:0);if(pointer){dx=pointer.x-pointer.originX;dy=pointer.y-pointer.originY;let l=Math.hypot(dx,dy);if(l<10)dx=dy=0;else{const power=Math.min(1,l/65);dx=dx/l*power;dy=dy/l*power}}let l=Math.hypot(dx,dy)||1;if(dx||dy){player.x+=dx/l*player.speed*dt;player.y+=dy/l*player.speed*dt}player.x=Math.max(player.r,Math.min(W-player.r,player.x));player.y=Math.max(player.r,Math.min(H-player.r,player.y));
-spawnTimer-=dt;if(spawnTimer<=0){spawn();spawnTimer=Math.max(.22,.85-elapsed*.006)}shotTimer-=dt;if(shotTimer<=0){shoot();shotTimer=player.cooldown}
-for(let e of enemies){let x=player.x-e.x,y=player.y-e.y,d=Math.hypot(x,y)||1;e.x+=x/d*e.speed*dt;e.y+=y/d*e.speed*dt;if(d<e.r+player.r&&player.inv<=0){player.hp-=e.damage||12;player.inv=.65;burst(player.x,player.y,'#fb7185',10);if(player.hp<=0){gameOver();return}}}
-for(let s of shots){s.x+=s.vx*dt;s.y+=s.vy*dt;s.life-=dt;for(let e of enemies){if(e.hp>0&&Math.hypot(e.x-s.x,e.y-s.y)<e.r+s.r){e.hp-=s.damage;s.life=0;burst(s.x,s.y,'#fde68a',3);break}}}shots=shots.filter(s=>s.life>0);
-enemies=enemies.filter(e=>{if(e.hp<=0){kills++;orbs.push({x:e.x,y:e.y,r:6});burst(e.x,e.y,e.color,8);return false}return true});
-for(let o of orbs){let d=Math.hypot(player.x-o.x,player.y-o.y);if(d<95){o.x+=(player.x-o.x)/d*220*dt;o.y+=(player.y-o.y)/d*220*dt}if(d<player.r+o.r+4){o.got=true;stats.xp++;}}
-orbs=orbs.filter(o=>!o.got);if(stats.xp>=stats.next)levelUp();
-for(let p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}particles=particles.filter(p=>p.life>0);updateHud()}
-function ellipse(x,y,rx,ry,color){ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill()}
-function triangle(x,y,size,color,rot=0){ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(0,-size);ctx.lineTo(size*.72,size);ctx.lineTo(-size*.72,size);ctx.closePath();ctx.fill();ctx.restore()}
-function drawHero(){const m=pokemon[selectedPokemon],x=player.x,y=player.y,r=player.r;ctx.save();ctx.translate(x,y);if(player.inv>0)ctx.globalAlpha=.55;ctx.shadowColor=m.color;ctx.shadowBlur=12;ellipse(0,2,r*.9,r*.82,evolved?'#fbbf24':m.color);ctx.shadowBlur=0;
-if(selectedPokemon===0){triangle(-r*.58,-r*.72,r*.48,'#facc15',-.28);triangle(r*.58,-r*.72,r*.48,'#facc15',.28);ellipse(-r*.56,-r*.05,3.5,4.5,'#ef4444');ellipse(r*.56,-r*.05,3.5,4.5,'#ef4444');ctx.strokeStyle='#78350f';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(r*.65,r*.35);ctx.lineTo(r*1.05,r*.12);ctx.lineTo(r*.82,-r*.2);ctx.stroke()}
-else if(selectedPokemon===1){ellipse(0,-r*.25,r*.72,r*.68,'#7dd3fc');ellipse(0,r*.45,r*.9,r*.58,'#0e7490');ellipse(0,r*.42,r*.62,r*.4,'#fef3c7');ellipse(-r*.75,r*.4,r*.32,r*.24,'#38bdf8');ellipse(r*.75,r*.4,r*.32,r*.24,'#38bdf8');}
-else{triangle(-r*.62,-r*.8,r*.42,'#fb923c',-.35);triangle(r*.62,-r*.8,r*.42,'#fb923c',.35);ellipse(0,r*.55,r*.48,r*.35,'#fed7aa');ctx.strokeStyle='#f97316';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(r*.65,r*.55);ctx.quadraticCurveTo(r*1.35,r*.2,r*1.05,-r*.25);ctx.stroke();ellipse(r*1.05,-r*.27,4,6,'#fde047')}
-ellipse(-r*.28,-r*.2,2.4,3,'#172554');ellipse(r*.28,-r*.2,2.4,3,'#172554');ctx.strokeStyle='#7c2d12';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,r*.08,3,0,Math.PI);ctx.stroke();if(evolved){ctx.strokeStyle='#fef08a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r+7,0,Math.PI*2);ctx.stroke()}ctx.restore();ctx.font='16px system-ui';ctx.textAlign='center';ctx.fillText(evolved?'✨':m.emoji,x,y-r-12)}
-function drawEnemy(e){const x=e.x,y=e.y,r=e.r;ctx.save();ctx.translate(x,y);ctx.shadowColor=e.color;ctx.shadowBlur=e.boss?18:5;
-if(e.kind==='bat'){ellipse(-r*.85,0,r*.85,r*.5,'#6d28d9');ellipse(r*.85,0,r*.85,r*.5,'#6d28d9');triangle(-r*.95,-r*.1,r*.55,'#8b5cf6',-1.1);triangle(r*.95,-r*.1,r*.55,'#8b5cf6',1.1);ellipse(0,0,r*.68,r*.72,'#7c3aed');triangle(-r*.42,-r*.55,r*.4,'#a78bfa',-.3);triangle(r*.42,-r*.55,r*.4,'#a78bfa',.3)}
-else if(e.kind==='sprout'){ellipse(0,2,r*.8,r*.72,'#22c55e');ellipse(0,-r*.45,r*.6,r*.52,'#86efac');ellipse(-r*.48,-r*.9,r*.38,r*.68,'#16a34a');ellipse(r*.48,-r*.9,r*.38,r*.68,'#15803d')}
-else if(e.kind==='imp'){ellipse(0,1,r*.8,r*.8,'#f43f5e');triangle(-r*.5,-r*.65,r*.5,'#be123c',-.45);triangle(r*.5,-r*.65,r*.5,'#be123c',.45)}
-else{ellipse(0,2,r,r*.88,'#6d28d9');triangle(-r*.62,-r*.5,r*.65,'#a78bfa',-.35);triangle(r*.62,-r*.5,r*.65,'#a78bfa',.35);ellipse(-r*.34,-r*.05,r*.13,r*.17,'#fca5a5');ellipse(r*.34,-r*.05,r*.13,r*.17,'#fca5a5');ctx.strokeStyle='#fef3c7';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-r*.35,r*.35);ctx.lineTo(0,r*.55);ctx.lineTo(r*.35,r*.35);ctx.stroke()}
-ellipse(-r*.28,-r*.12,e.boss?3:2.2,e.boss?4:2.8,'#fff');ellipse(r*.28,-r*.12,e.boss?3:2.2,e.boss?4:2.8,'#fff');ellipse(-r*.28,-r*.1,1.2,2,'#111827');ellipse(r*.28,-r*.1,1.2,2,'#111827');ctx.restore();
-if(e.boss){ctx.fillStyle='#0f172a';ctx.fillRect(x-r,y-r-13,r*2,6);ctx.fillStyle='#ef4444';ctx.fillRect(x-r,y-r-13,r*2*Math.max(0,e.hp/e.maxHp),6);ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('보스 몬스터',x,y-r-19)}else{ctx.fillStyle='#0f172a';ctx.fillRect(x-r,y-r-7,r*2,3);ctx.fillStyle='#fb7185';ctx.fillRect(x-r,y-r-7,r*2*Math.max(0,e.hp/e.maxHp),3)}}
-function draw(){ctx.clearRect(0,0,W,H);ctx.save();ctx.strokeStyle='#ffffff0c';ctx.lineWidth=1;let step=42;for(let x=0;x<W;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=0;y<H;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
-for(let o of orbs){ctx.fillStyle='#60a5fa';ctx.beginPath();ctx.arc(o.x,o.y,o.r,0,7);ctx.fill();ctx.fillStyle='#bfdbfe';ctx.beginPath();ctx.arc(o.x-2,o.y-2,2,0,7);ctx.fill()}
-for(let s of shots){ctx.save();ctx.shadowColor='#fde68a';ctx.shadowBlur=12;ctx.fillStyle=selectedPokemon===0?'#facc15':selectedPokemon===1?'#38bdf8':'#fb923c';ctx.beginPath();ctx.arc(s.x,s.y,s.r+1,0,7);ctx.fill();ctx.restore()}
-for(let e of enemies)drawEnemy(e);
-for(const fx of skillEffects){const a=fx.life/fx.max;ctx.save();ctx.globalAlpha=Math.min(1,a*1.8);if(fx.type==='thunder'){ctx.strokeStyle='#fde047';ctx.lineWidth=9;ctx.shadowColor='#facc15';ctx.shadowBlur=25;ctx.beginPath();ctx.arc(fx.x,fx.y,fx.r*(1-a*.45),0,Math.PI*2);ctx.stroke();for(let i=0;i<8;i++){const ang=i*Math.PI/4,rr=fx.r*.72;ctx.strokeStyle='#fef08a';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(fx.x+Math.cos(ang)*rr,fx.y+Math.sin(ang)*rr);ctx.lineTo(fx.x+Math.cos(ang)*rr*.5+Math.sin(ang)*12,fx.y+Math.sin(ang)*rr*.5);ctx.stroke()}}else if(fx.type==='water'){ctx.strokeStyle='#7dd3fc';ctx.lineWidth=28;ctx.lineCap='round';ctx.shadowColor='#38bdf8';ctx.shadowBlur=20;ctx.beginPath();ctx.moveTo(fx.x,fx.y);ctx.lineTo(fx.x+fx.dx*330,fx.y+fx.dy*330);ctx.stroke()}else{ctx.fillStyle='#fb923c';ctx.shadowColor='#f97316';ctx.shadowBlur=22;ctx.beginPath();ctx.moveTo(fx.x,fx.y);ctx.arc(fx.x,fx.y,205,Math.atan2(fx.dy,fx.dx)-.48,Math.atan2(fx.dy,fx.dx)+.48);ctx.closePath();ctx.fill()}ctx.restore()}
-for(let p of particles){ctx.globalAlpha=Math.max(0,p.life/.35);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,3,0,7);ctx.fill()}ctx.globalAlpha=1;drawHero();ctx.restore()}
-function loop(t){let dt=Math.min((t-last)/1000||0,.04);last=t;update(dt);draw();raf=requestAnimationFrame(loop)}
-function gameOver(){running=false;$('result').textContent='생존 시간 '+fmt(elapsed)+' · 처치 '+kills+'마리 · 도달 레벨 '+stats.level;$('over').classList.remove('hidden')}
-function start(){cancelAnimationFrame(raf);reset();$('start').classList.add('hidden');$('over').classList.add('hidden');$('levelup').classList.add('hidden');running=true;paused=false;last=performance.now();raf=requestAnimationFrame(loop)}
-$('startBtn').onclick=start;$('again').onclick=start;$('skillBtn').onclick=activateSkill;
-addEventListener('keydown',e=>{keys[e.key]=true;if(e.code==='Space'){e.preventDefault();activateSkill()}if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault()});addEventListener('keyup',e=>keys[e.key]=false);
-function pos(e){let r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}canvas.addEventListener('pointerdown',e=>{const p=pos(e);pointer={id:e.pointerId,originX:p.x,originY:p.y,x:p.x,y:p.y};canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(pointer&&pointer.id===e.pointerId){const p=pos(e);pointer.x=p.x;pointer.y=p.y}});function releasePointer(e){if(pointer&&(!e||pointer.id===e.pointerId))pointer=null}canvas.addEventListener('pointerup',releasePointer);canvas.addEventListener('pointercancel',releasePointer);canvas.addEventListener('lostpointercapture',releasePointer);
-pokemon.forEach((mon,i)=>{const b=document.createElement('button');b.className='choice';b.innerHTML=mon.emoji+' '+mon.name+'<small>'+mon.desc+'</small>';b.onclick=()=>{selectedPokemon=i;document.querySelectorAll('#pokemonChoices .choice').forEach((el,j)=>el.style.outline=j===i?'3px solid #60a5fa':'none')};$('pokemonChoices').appendChild(b);if(i===0)b.style.outline='3px solid #60a5fa'});$('hint').textContent='화면 어디든 누른 채 끌어서 이동 · 공격은 자동!';reset();draw();
-})();
-</script></body></html>
+
+<!-- ================= 화면 루트 ================= -->
+<div id="screenRoot"></div>
+
+<!-- ================= 레벨업 ================= -->
+<div id="levelupOverlay" class="overlay hidden">
+  <div class="lu-head">
+    <div class="lu-kicker">LEVEL UP!</div>
+    <h2>기술을 선택하세요</h2>
+    <p>하나를 골라 더 강해지세요</p>
+  </div>
+  <div id="cardList" class="card-list"></div>
+</div>
+
+<!-- ================= 진화 ================= -->
+<div id="evoOverlay" class="overlay evo hidden">
+  <div class="evo-inner">
+    <div class="evo-kicker" id="evoKicker">EVOLUTION</div>
+    <div class="evo-sprites">
+      <img id="evoFrom" class="evo-from" alt="">
+      <div class="evo-arrow">➜</div>
+      <img id="evoTo" class="evo-to" alt="">
+    </div>
+    <h2 id="evoName">리자몽</h2>
+    <p id="evoDesc">새로운 힘이 깨어났다!</p>
+    <button id="evoOk" class="btn primary">계속</button>
+  </div>
+</div>
+
+<!-- ================= 분기 진화 ================= -->
+<div id="branchOverlay" class="overlay hidden">
+  <div class="lu-head">
+    <div class="lu-kicker">BRANCH EVOLUTION</div>
+    <h2>어떤 모습으로 진화할까?</h2>
+    <p>이브이의 운명을 선택하세요</p>
+  </div>
+  <div id="branchList" class="branch-list"></div>
+</div>
+
+<!-- ================= 일시정지 ================= -->
+<div id="pauseOverlay" class="overlay hidden">
+  <div class="panel pause-panel">
+    <h2>일시정지</h2>
+    <button class="btn primary" id="resumeBtn">계속하기</button>
+    <button class="btn ghost" id="soundBtn">효과음: 켜짐</button>
+    <button class="btn ghost" id="cryBtn">울음소리: 켜짐</button>
+    <button class="btn danger" id="quitBtn">로비로 나가기</button>
+    <p class="tiny">나가면 이번 판 보상은 사라져요</p>
+  </div>
+</div>
+
+<div id="toastRoot"></div>
+<div id="loading" class="loading">
+  <div class="pokeball"></div>
+  <div class="loading-text">포켓몬을 불러오는 중…<span id="loadPct">0%</span></div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
