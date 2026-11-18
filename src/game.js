@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=17';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=17';
-import { SFX } from './audio.js?v=17';
-import { metaMods, markCaught, markSeen } from './save.js?v=17';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=18';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=18';
+import { SFX } from './audio.js?v=18';
+import { metaMods, markCaught, markSeen } from './save.js?v=18';
 
 const TAU = Math.PI * 2;
 const WORLD = 4600;
@@ -1650,23 +1650,23 @@ export class Game {
     const c = document.createElement('canvas');
     c.width = c.height = 256;
     const x = c.getContext('2d');
-    x.fillStyle = stage.ground[1];
+    x.fillStyle = stage.ground[0];
     x.fillRect(0, 0, 256, 256);
-    for (let i = 0; i < 26; i++) {
-      const px = Math.random() * 256, py = Math.random() * 256, r = 26 + Math.random() * 54;
+    for (let i = 0; i < 34; i++) {
+      const px = Math.random() * 256, py = Math.random() * 256, r = 18 + Math.random() * 44;
       for (let ox = -256; ox <= 256; ox += 256) {
         for (let oy = -256; oy <= 256; oy += 256) {
           const g2 = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r);
-          g2.addColorStop(0, stage.ground[0]);
+          g2.addColorStop(0, stage.ground[1]);
           g2.addColorStop(1, 'rgba(0,0,0,0)');
-          x.globalAlpha = 0.5;
+          x.globalAlpha = 0.3;
           x.fillStyle = g2;
           x.beginPath(); x.arc(px + ox, py + oy, r, 0, TAU); x.fill();
         }
       }
     }
-    x.globalAlpha = 0.22;
-    for (let i = 0; i < 240; i++) {
+    x.globalAlpha = 0.14;
+    for (let i = 0; i < 300; i++) {
       x.fillStyle = Math.random() < 0.55 ? '#000' : stage.accent;
       const s = Math.random() < 0.9 ? 2 : 3;
       x.fillRect(Math.random() * 256, Math.random() * 256, s, s);
