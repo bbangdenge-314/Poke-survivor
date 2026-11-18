@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=3';
-import { getSprite, fallbackDraw, playCry, loadSprite } from './sprites.js?v=3';
-import { SFX } from './audio.js?v=3';
-import { metaMods, markCaught, markSeen } from './save.js?v=3';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=4';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=4';
+import { SFX } from './audio.js?v=4';
+import { metaMods, markCaught, markSeen } from './save.js?v=4';
 
 const TAU = Math.PI * 2;
 const WORLD = 3000;
@@ -1635,14 +1635,18 @@ export class Game {
     const x = c.getContext('2d');
     x.fillStyle = stage.ground[1];
     x.fillRect(0, 0, 256, 256);
-    for (let i = 0; i < 30; i++) {
-      const px = Math.random() * 256, py = Math.random() * 256, r = 24 + Math.random() * 58;
-      const g2 = x.createRadialGradient(px, py, 0, px, py, r);
-      g2.addColorStop(0, stage.ground[0]);
-      g2.addColorStop(1, 'rgba(0,0,0,0)');
-      x.globalAlpha = 0.5;
-      x.fillStyle = g2;
-      x.beginPath(); x.arc(px, py, r, 0, TAU); x.fill();
+    for (let i = 0; i < 26; i++) {
+      const px = Math.random() * 256, py = Math.random() * 256, r = 26 + Math.random() * 54;
+      for (let ox = -256; ox <= 256; ox += 256) {
+        for (let oy = -256; oy <= 256; oy += 256) {
+          const g2 = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r);
+          g2.addColorStop(0, stage.ground[0]);
+          g2.addColorStop(1, 'rgba(0,0,0,0)');
+          x.globalAlpha = 0.5;
+          x.fillStyle = g2;
+          x.beginPath(); x.arc(px + ox, py + oy, r, 0, TAU); x.fill();
+        }
+      }
     }
     x.globalAlpha = 0.22;
     for (let i = 0; i < 240; i++) {
@@ -1656,38 +1660,43 @@ export class Game {
     return pat;
   }
 
-  drawSpriteEntity(ctx, x, y, size, id, shiny, facing, optsNow = {}) {
+  drawSpriteEntity(ctx, x, y, visibleH, id, shiny, facing, optsNow = {}) {
     const img = getSprite(id, shiny);
     const bob = optsNow.bob || 0;
     const flash = optsNow.flash || 0;
     const alpha = optsNow.alpha == null ? 1 : optsNow.alpha;
+    const feet = optsNow.feet == null ? y + visibleH * 0.18 : optsNow.feet;
     ctx.save();
     ctx.globalAlpha = alpha;
     // 그림자
     ctx.fillStyle = 'rgba(0,0,0,0.32)';
     ctx.beginPath();
-    ctx.ellipse(x, y + size * 0.34, size * 0.28, size * 0.10, 0, 0, TAU);
+    ctx.ellipse(x, feet + 2, visibleH * 0.30, visibleH * 0.10, 0, 0, TAU);
     ctx.fill();
-    ctx.translate(x, y + Math.sin(bob) * size * 0.03);
+    ctx.translate(x, feet + Math.sin(bob) * visibleH * 0.02);
     if (facing < 0) ctx.scale(-1, 1);
     if (img) {
-      const w = size, h = size;
+      const b = spriteBounds(img);
+      const sc = visibleH / b.h;
+      const dw = img.width * sc, dh = img.height * sc;
+      const dx = -(b.x + b.w / 2) * sc;
+      const dy = -(b.y + b.h) * sc;
       if (flash > 0) {
         ctx.save();
         try { ctx.filter = 'brightness(0) invert(1)'; } catch (e) { /* noop */ }
-        ctx.drawImage(img, -w / 2, -h * 0.62, w, h);
+        ctx.drawImage(img, dx, dy, dw, dh);
         ctx.restore();
       }
-      ctx.drawImage(img, -w / 2, -h * 0.62, w, h);
+      ctx.drawImage(img, dx, dy, dw, dh);
     } else {
-      fallbackDraw(ctx, id, 0, 0, size, optsNow.color, shiny);
+      fallbackDraw(ctx, id, 0, -visibleH * 0.5, visibleH, optsNow.color, shiny);
     }
     ctx.restore();
   }
 
   drawPlayer(ctx) {
     const p = this.player;
-    const size = 132 * p.scale;
+    const visH = 94 + this.evoStage * 9;
     const id = this.currentStage();
     // 플레이어 발치 글로우
     ctx.save();
@@ -1716,7 +1725,7 @@ export class Game {
       }
     }
     if (p.inv > 0 && Math.floor(performance.now() / 60) % 2 === 0) ctx.globalAlpha = 0.55;
-    this.drawSpriteEntity(ctx, p.x, p.y, size, id, p.shiny, p.face, { bob: p.t * 9, flash: p.hitFlash > 0 ? 1 : 0, color: '#93c5fd' });
+    this.drawSpriteEntity(ctx, p.x, p.y, visH * p.scale, id, p.shiny, p.face, { bob: p.t * 9, flash: p.hitFlash > 0 ? 1 : 0, color: '#93c5fd', feet: p.y + 26 });
     ctx.globalAlpha = 1;
     if (this.evoStage > 0) {
       ctx.save();
@@ -1731,9 +1740,9 @@ export class Game {
   }
 
   drawEnemy(ctx, e) {
-    const size = e.def.r * 6.0 * (e.elite ? 1.28 : 1) * (e.boss ? 1.05 : 1);
-    this.drawSpriteEntity(ctx, e.x, e.y, size, e.def.id, e.shiny, e.facing, {
-      bob: e.bob, flash: e.flash, color: e.typeColor || '#f87171'
+    const visH = e.def.r * 3.3 * (e.elite ? 1.25 : 1) * (e.boss ? 1.05 : 1);
+    this.drawSpriteEntity(ctx, e.x, e.y, visH, e.def.id, e.shiny, e.facing, {
+      bob: e.bob, flash: e.flash, color: e.typeColor || '#f87171', feet: e.y + e.r * 0.55
     });
     if (e.shiny) {
       ctx.save();
@@ -1757,8 +1766,8 @@ export class Game {
       ctx.restore();
     }
     if (e.boss) {
-      const w = 74, h = 7;
-      const x = e.x - w / 2, y = e.y - size * 0.72;
+      const w = 84, h = 8;
+      const x = e.x - w / 2, y = e.y - visH - e.r * 0.55 - 10;
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
       ctx.fillStyle = e.final ? '#f472b6' : '#f87171';

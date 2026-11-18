@@ -67,6 +67,39 @@ export function preload(ids, shiny = false, onProgress) {
   })));
 }
 
+/* ---------- 실제 그림 영역(알파 bbox) 측정 ---------- */
+const bboxCache = new Map();
+export function spriteBounds(img) {
+  let b = bboxCache.get(img.src);
+  if (b) return b;
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  let data = null;
+  try { data = x.getImageData(0, 0, c.width, c.height).data; } catch (e) { data = null; }
+  if (!data) {
+    b = { x: 0, y: 0, w: img.width, h: img.height };
+    bboxCache.set(img.src, b);
+    return b;
+  }
+  let minX = 1e9, minY = 1e9, maxX = -1, maxY = -1;
+  for (let yy = 0; yy < c.height; yy++) {
+    for (let xx = 0; xx < c.width; xx++) {
+      if (data[(yy * c.width + xx) * 4 + 3] > 20) {
+        if (xx < minX) minX = xx;
+        if (xx > maxX) maxX = xx;
+        if (yy < minY) minY = yy;
+        if (yy > maxY) maxY = yy;
+      }
+    }
+  }
+  if (maxX < 0) { minX = 0; minY = 0; maxX = c.width - 1; maxY = c.height - 1; }
+  b = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+  bboxCache.set(img.src, b);
+  return b;
+}
+
 /* ---------- 폴백 드로잉 (스프라이트 없을 때) ---------- */
 export function fallbackDraw(ctx, id, x, y, size, color, shiny) {
   const seed = (id * 9301 + 49297) % 233280 / 233280;
