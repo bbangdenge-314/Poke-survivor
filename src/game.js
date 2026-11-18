@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=6';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=6';
-import { SFX } from './audio.js?v=6';
-import { metaMods, markCaught, markSeen } from './save.js?v=6';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=7';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=7';
+import { SFX } from './audio.js?v=7';
+import { metaMods, markCaught, markSeen } from './save.js?v=7';
 
 const TAU = Math.PI * 2;
 const WORLD = 3000;
@@ -406,7 +406,7 @@ export class Game {
         return true;
       }
       case 'psychic': {
-        this.rings.push({ x: p.x, y: p.y, r: 20, r1: st.radius, life: 0.55, max: 0.55, color: '#f472b6', kind: 'psychic', hit: new Set(), dmg: st.dmg, pull: awake });
+        this.rings.push({ x: p.x, y: p.y, r: 20, r1: st.radius, life: 0.55, max: 0.55, color: '#f472b6', kind: 'psychic', hit: new Set(), dmg: st.dmg, pull: awake, delay: 0 });
         if (awake) {
           for (const e of this.enemies) {
             const d = Math.hypot(e.x - p.x, e.y - p.y);
@@ -461,7 +461,7 @@ export class Game {
         }
         if (awake) {
           for (const e of this.enemies) if (dist2(e.x, e.y, p.x, p.y) < 200 * 200) e.freeze = Math.max(e.freeze, 0.8);
-          this.rings.push({ x: p.x, y: p.y, r: 30, r1: 210, life: 0.6, max: 0.6, color: '#7dd3fc', kind: 'ice', hit: new Set(), dmg: 0 });
+          this.rings.push({ x: p.x, y: p.y, r: 30, r1: 210, life: 0.6, max: 0.6, color: '#7dd3fc', kind: 'ice', hit: new Set(), dmg: 0, delay: 0 });
         }
         return true;
       }
@@ -670,7 +670,7 @@ export class Game {
     if (this.finalSpawned && this.enemies.length === 0 && !this.finalBoss) { /* noop */ }
     this.spawnTimer -= dt;
     const rate = Math.max(0.13, 0.62 - this.time * 0.00055);
-    if (this.spawnTimer <= 0 && this.enemies.length < 260) {
+    if (this.spawnTimer <= 0 && this.enemies.length < 230) {
       this.spawnTimer = rate * rand(0.75, 1.25);
       const pool = this.currentPool();
       if (pool.length) {
@@ -1360,10 +1360,10 @@ export class Game {
     this.slashes = this.slashes.filter(s => s.life > 0);
     for (const r of this.rings) {
       r.life -= dt;
-      if (r.delay > 0) { r.delay -= dt; }
+      if (r.delay > 0) r.delay -= dt;
       const prog = 1 - Math.max(0, r.life) / r.max;
       r.r = r.r1 * (r.kind === 'meteor' ? 1 : Math.min(1, prog * 1.6));
-      if (r.delay <= 0 && !r.done) {
+      if (!(r.delay > 0) && !r.done) {
         r.done = true;
         if (r.dmg > 0) {
           if (r.kind === 'meteor') {
