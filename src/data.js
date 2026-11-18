@@ -139,13 +139,13 @@ export const WEAPONS = {
   dash: {
     name:'전광석화', icon:'💨', type:'노말', color:'#fca5a5', max:6,
     desc:'전방으로 돌진해 지나가는 적을 벤다.',
-    stats: lv => ({ dmg: 28 + 13 * lv, cd: Math.max(0.38, 1.2 - lv * 0.1), dist: 160 + lv * 14 }),
+    stats: lv => ({ dmg: 34 + 15 * lv, cd: Math.max(0.34, 1.0 - lv * 0.09), dist: 170 + lv * 16 }),
     awake:'신속 — 잔상을 남기며 연속 돌진한다.'
   },
   slam: {
     name:'바디프레스', icon:'💥', type:'노말', color:'#fbbf24', max:6,
     desc:'몸 전체로 내리찍어 기절시킨다.',
-    stats: lv => ({ dmg: 36 + 16 * lv, cd: Math.max(0.9, 2.6 - lv * 0.16), radius: 150 + lv * 18 }),
+    stats: lv => ({ dmg: 44 + 18 * lv, cd: Math.max(0.85, 2.4 - lv * 0.19), radius: 155 + lv * 22 }),
     awake:'기가임팩트급 충격 — 착지 충격파가 2연타.'
   },
   nightmare: {
