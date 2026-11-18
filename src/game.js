@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=12';
-import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=12';
-import { SFX } from './audio.js?v=12';
-import { metaMods, markCaught, markSeen } from './save.js?v=12';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=13';
+import { getSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=13';
+import { SFX } from './audio.js?v=13';
+import { metaMods, markCaught, markSeen } from './save.js?v=13';
 
 const TAU = Math.PI * 2;
 const WORLD = 4600;
@@ -1726,6 +1726,13 @@ export class Game {
     gg.addColorStop(1, 'rgba(147,197,253,0)');
     ctx.fillStyle = gg;
     ctx.beginPath(); ctx.ellipse(p.x, p.y + 22, 62, 30, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+    // 위치 표시 링
+    ctx.save();
+    ctx.globalAlpha = 0.45 + Math.sin(p.t * 4) * 0.12;
+    ctx.strokeStyle = 'rgba(191,219,254,0.85)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 26, 34, 13, 0, 0, TAU); ctx.stroke();
     ctx.restore();
     if (p.shiny) {
       const t = performance.now() / 300;
