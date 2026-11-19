@@ -1,5 +1,5 @@
 /* 영구 저장(localStorage) · 메타 진행 · 퀘스트 해금 */
-import { CHARACTERS, UPGRADES, QUESTS, QUEST_BY_KEY, PASSIVES, FIELD_ITEMS, LOCKED_PASSIVES, LOCKED_FIELDS, SAVE_KEY } from './data.js?v=21';
+import { CHARACTERS, UPGRADES, QUESTS, QUEST_BY_KEY, PASSIVES, FIELD_ITEMS, LOCKED_PASSIVES, LOCKED_FIELDS, SAVE_KEY } from './data.js?v=22';
 
 const baseSettings = () => ({ sfx: true, cries: true, shake: true, view: 'wide' });
 
@@ -48,6 +48,30 @@ export function getSave() {
       if (!Array.isArray(data.cleared)) data.cleared = [];
     } else {
       data = defaultSave();
+      // v3 세이브 마이그레이션 (코인 해금 시절 진행도 보존)
+      try {
+        const oldRaw = localStorage.getItem('pokeSurvivor.save.v3');
+        if (oldRaw) {
+          const o = JSON.parse(oldRaw);
+          data.coins = o.coins || 0;
+          data.dust = o.dust || 0;
+          data.upgrades = Object.assign(data.upgrades, o.upgrades || {});
+          if (Array.isArray(o.unlocked)) data.unlocked = [...new Set([...data.unlocked, ...o.unlocked])];
+          data.shiny = o.shiny || {};
+          data.dexSeen = o.dexSeen || {};
+          data.dexCaught = o.dexCaught || {};
+          data.cleared = Array.isArray(o.cleared) ? o.cleared : [];
+          data.stages = [...new Set(['meadow', ...data.cleared])];
+          data.settings = Object.assign(data.settings, o.settings || {});
+          data.stats.runs = o.runs || 0;
+          data.stats.wins = o.wins || 0;
+          data.stats.kills = o.kills || 0;
+          data.stats.playTime = 0;
+          data.cleared.forEach(k => { data.stats.clears[k] = data.stats.clears[k] || 1; });
+          data.wins = o.wins || 0;
+          persist();
+        }
+      } catch (e) { /* ignore */ }
     }
   } catch (e) {
     data = defaultSave();

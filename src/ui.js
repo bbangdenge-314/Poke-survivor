@@ -4,12 +4,14 @@
 import {
   CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES,
   TYPE_COLORS, BRANCH_NAMES, FIELD_ITEMS, SUPER_AWAKENS, QUESTS, QUEST_BY_KEY, VIEW_MODES
-} from './data.js?v=21';
-import { spriteURL } from './sprites.js?v=21';
+} from './data.js?v=22';
+import { spriteURL } from './sprites.js?v=22';
+import { setCryEnabled } from './sprites.js?v=22';
+import { setSfxEnabled } from './audio.js?v=22';
 import {
   getSave, upgradeCost, buyUpgrade, isUnlocked, isStageUnlocked, isPassiveUnlocked,
   isFieldUnlocked, questState, claimQuest, questRewardText, setSetting, toggleSetting, persist
-} from './save.js?v=21';
+} from './save.js?v=22';
 
 const $ = id => document.getElementById(id);
 const AFFINITY_LABEL = id => WEAPONS[id] ? `${WEAPONS[id].icon}${WEAPONS[id].name}` : id;
@@ -537,8 +539,8 @@ export class UI {
         </div>
       </div>`);
     $('backBtn').onclick = () => this.showTitle();
-    $('setSfx').onclick = () => { toggleSetting('sfx'); this.showSettings(); };
-    $('setCry').onclick = () => { toggleSetting('cries'); this.showSettings(); };
+    $('setSfx').onclick = () => { const v = toggleSetting('sfx'); setSfxEnabled(v); this.showSettings(); };
+    $('setCry').onclick = () => { const v = toggleSetting('cries'); setCryEnabled(v); this.showSettings(); };
     $('setShake').onclick = () => { toggleSetting('shake'); if (this.game) this.game.applySettings(); this.showSettings(); };
     this.root.querySelectorAll('[data-view]').forEach(el => {
       el.onclick = () => {
