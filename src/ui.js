@@ -683,6 +683,7 @@ export class UI {
       }
       if (n) this.toast(`🎉 퀘스트 ${n}개 보상 수령! 🪙 +${coins.toLocaleString()}`, 'good');
       else this.toast('수령할 보상이 없어요', 'bad');
+      this.questFilters().status = 'all';
       this.showQuests();
     };
     this.renderQuestList();

@@ -674,6 +674,7 @@ img { -webkit-user-drag: none; user-select: none; }
 .cf-check input { margin-top: 2px; accent-color: #e0487c; width: 17px; height: 17px; flex: 0 0 auto; }
 .settings-card.danger-zone { border: 1.5px solid #ffd6e0; background: #fffafa; }
 .settings-card.danger-zone .set-row { border-bottom: 0; }
+.settings-card.danger-zone .btn { white-space: nowrap; }
 
 /* 퀘스트 화면 */
 .quest-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 9px; }
@@ -717,4 +718,6 @@ img { -webkit-user-drag: none; user-select: none; }
   .notice-panel h2, .confirm-panel h2 { font-size: 19px; }
   .quest-filter .fb-row { flex-wrap: wrap; overflow: visible; }
   .quest-tabs { flex-wrap: wrap; }
+  .settings-card.danger-zone .set-row { flex-direction: column; align-items: stretch; gap: 9px; }
+  .settings-card.danger-zone .btn { width: 100%; }
 }
