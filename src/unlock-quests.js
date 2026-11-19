@@ -21,6 +21,7 @@ const LV = n => ({ stat: 'maxLevel', n });
 const BK = n => ({ stat: 'bestKills', n });
 const NH = n => ({ stat: 'noHit', n });                              // 무피격 최고 기록(초)
 const COIN = n => ({ stat: 'coins', n });                            // 누적 코인
+const EVO = n => ({ stat: 'evolutions', n });                        // 진화 달성 횟수
 const DEXN = n => ({ stat: 'dexCaught', n });
 const TIME = n => ({ stat: 'bestTime', n });                         // 한 판 최고 생존(초)
 
