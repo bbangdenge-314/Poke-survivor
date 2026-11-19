@@ -1,12 +1,12 @@
 /* ============================================================
    POKE SURVIVOR — 부트스트랩 / 입력 / 루프
    ============================================================ */
-import { Game } from './game.js?v=25';
-import { UI } from './ui.js?v=25';
-import { DEX, CHARACTERS, STAGES, VIEW_MODES, SUPER_AWAKENS } from './data.js?v=25';
-import { preload, playCry, setCryEnabled } from './sprites.js?v=25';
-import { initAudio, setSfxEnabled, SFX } from './audio.js?v=25';
-import { getSave, persist, recordRun, toggleSetting, setSetting } from './save.js?v=25';
+import { Game } from './game.js?v=26';
+import { UI } from './ui.js?v=26';
+import { DEX, CHARACTERS, STAGES, VIEW_MODES, SUPER_AWAKENS } from './data.js?v=26';
+import { preload, playCry, setCryEnabled } from './sprites.js?v=26';
+import { initAudio, setSfxEnabled, SFX } from './audio.js?v=26';
+import { getSave, persist, recordRun, toggleSetting, setSetting } from './save.js?v=26';
 
 /* ---------- 오류 수집 (검증용) ---------- */
 window.__errors = [];
@@ -48,7 +48,9 @@ game.hooks = {
       charKey: result.charKey, shiny: result.shiny,
       level: result.level, seenIds: result.seenIds,
       bosses: result.bosses, awakens: result.awakens, supers: result.supers,
-      megas: result.megas, chests: result.chests, shinies: result.shinies
+      megas: result.megas, chests: result.chests, shinies: result.shinies,
+      elites: result.elites, legends: result.legends, evolutions: result.evolutions,
+      noHitBest: result.noHitBest, killsByType: result.killsByType, killsByWeapon: result.killsByWeapon
     });
     setTimeout(() => ui.showResult(g, result), result.win ? 900 : 700);
   },
@@ -147,7 +149,7 @@ function togglePause() {
   if (!game.paused) {
     pausedByUser = true;
     game.paused = true;
-    ui.showPause(save.settings);
+    ui.showPause(getSave().settings);
   } else if (pausedByUser) {
     pausedByUser = false;
     game.paused = false;

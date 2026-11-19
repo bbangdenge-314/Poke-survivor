@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#bfe6ff">
 <title>포켓 서바이버 · Poke Survivor</title>
-<link rel="stylesheet" href="styles.css?v=25">
+<link rel="stylesheet" href="styles.css?v=26">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23fff' stroke='%230b1020' stroke-width='8'/><path d='M4 50h92' stroke='%230b1020' stroke-width='10'/><circle cx='50' cy='50' r='15' fill='%23ef4444' stroke='%230b1020' stroke-width='6'/></svg>">
 </head>
 <body>
@@ -125,11 +125,26 @@
   </div>
 </div>
 
+<!-- ================= 잠금 포켓몬 해금 퀘스트 ================= -->
+<div id="lockOverlay" class="overlay hidden">
+  <div class="panel lock-panel"><div id="lockBody"></div></div>
+</div>
+
+<!-- ================= 진행사항 초기화 (2중 확인) ================= -->
+<div id="confirmOverlay" class="overlay hidden">
+  <div class="panel confirm-panel"><div id="confirmPanel"></div></div>
+</div>
+
+<!-- ================= 세이브 개편 안내 ================= -->
+<div id="noticeOverlay" class="overlay hidden">
+  <div class="panel notice-panel"><div id="noticePanel"></div></div>
+</div>
+
 <div id="toastRoot"></div>
 <div id="loading" class="loading">
   <div class="pokeball"></div>
   <div class="loading-text">포켓몬을 불러오는 중…<span id="loadPct">0%</span></div>
 </div>
-<script type="module" src="src/main.js?v=25"></script>
+<script type="module" src="src/main.js?v=26"></script>
 </body>
 </html>

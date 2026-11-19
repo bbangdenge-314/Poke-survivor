@@ -1,19 +1,27 @@
 /* 영구 저장(localStorage) · 메타 진행 · 퀘스트 해금 */
-import { CHARACTERS, UPGRADES, QUESTS, QUEST_BY_KEY, PASSIVES, FIELD_ITEMS, LOCKED_PASSIVES, LOCKED_FIELDS, SAVE_KEY } from './data.js?v=25';
+import {
+  CHARACTERS, STARTER_KEYS, UPGRADES, QUESTS, QUEST_BY_KEY, PASSIVES, FIELD_ITEMS, WEAPONS, STAGES,
+  LOCKED_PASSIVES, LOCKED_FIELDS, SAVE_KEY, LEGACY_SAVE_KEYS
+} from './data.js?v=26';
+
+const SAVE_VERSION = 5;
 
 const baseSettings = () => ({ sfx: true, cries: true, shake: true, view: 'wide' });
 
 const baseStats = () => ({
   runs: 0, wins: 0, kills: 0, bossKills: 0, awakens: 0, supers: 0, megas: 0,
-  chests: 0, shinies: 0, maxLevel: 1, playTime: 0, clears: {}, bestKills: 0
+  chests: 0, shinies: 0, maxLevel: 1, playTime: 0, clears: {}, bestKills: 0,
+  /* v5 확장 집계 */
+  elites: 0, legends: 0, evolutions: 0, coinsEarned: 0, noHitBest: 0, bestTime: 0,
+  killsByType: {}, killsByWeapon: {}
 });
 
 const defaultSave = () => ({
-  v: 4,
+  v: SAVE_VERSION,
   coins: 0,
   dust: 0,
   upgrades: Object.fromEntries(UPGRADES.map(u => [u.key, 0])),
-  unlocked: CHARACTERS.filter(c => !c.unlockQuest).map(c => c.key),
+  unlocked: [...STARTER_KEYS],
   stages: ['meadow'],
   fields: Object.keys(FIELD_ITEMS).filter(k => !LOCKED_FIELDS[k]),
   passives: Object.keys(PASSIVES).filter(k => !LOCKED_PASSIVES[k]),
@@ -29,61 +37,140 @@ const defaultSave = () => ({
 
 let data = null;
 
+const STAGE_KEYS = STAGES.map(s => s.key);
+
+/* 구버전 공통 병합: 맵/배열이 비어 있어도 새 필드가 사라지지 않게 */
+function normalizeStats(raw) {
+  const st = Object.assign(baseStats(), raw || {});
+  st.clears = Object.assign({}, (raw && raw.clears) || {});
+  st.killsByType = Object.assign({}, (raw && raw.killsByType) || {});
+  st.killsByWeapon = Object.assign({}, (raw && raw.killsByWeapon) || {});
+  return st;
+}
+
+function normalize(d) {
+  d.v = SAVE_VERSION;
+  d.upgrades = Object.assign(Object.fromEntries(UPGRADES.map(u => [u.key, 0])), d.upgrades || {});
+  d.settings = Object.assign(baseSettings(), d.settings || {});
+  d.stats = normalizeStats(d.stats);
+  if (!Array.isArray(d.unlocked) || !d.unlocked.length) d.unlocked = [...STARTER_KEYS];
+  else d.unlocked = [...new Set([...d.unlocked.filter(k => CHARACTERS.some(c => c.key === k)), ...STARTER_KEYS])];
+  if (!Array.isArray(d.stages) || !d.stages.length) d.stages = ['meadow'];
+  else d.stages = [...new Set(['meadow', ...d.stages.filter(k => STAGE_KEYS.includes(k))])];
+  if (!Array.isArray(d.fields) || !d.fields.length) d.fields = Object.keys(FIELD_ITEMS).filter(k => !LOCKED_FIELDS[k]);
+  if (!Array.isArray(d.passives) || !d.passives.length) d.passives = Object.keys(PASSIVES).filter(k => !LOCKED_PASSIVES[k]);
+  if (!d.questsClaimed || typeof d.questsClaimed !== 'object') d.questsClaimed = {};
+  if (!Array.isArray(d.cleared)) d.cleared = [];
+  if (!d.shiny || typeof d.shiny !== 'object') d.shiny = {};
+  if (!d.dexSeen || typeof d.dexSeen !== 'object') d.dexSeen = {};
+  if (!d.dexCaught || typeof d.dexCaught !== 'object') d.dexCaught = {};
+  return d;
+}
+
+/* v4 → v5 : 캐릭터 해금이 '전원 개방'에서 '퀘스트 해금'으로 바뀐 세이브 변환.
+   코인·영구강화·클리어 기록·도감·퀘스트 수령 기록은 유지하고,
+   캐릭터는 스타터 5종 + 이미 수령한 퀘스트 보상만 남긴다. */
+function migrateV4(o) {
+  const d = defaultSave();
+  d.coins = o.coins || 0;
+  d.dust = o.dust || 0;
+  d.upgrades = Object.assign(d.upgrades, o.upgrades || {});
+  d.stats = normalizeStats(o.stats);
+  d.cleared = Array.isArray(o.cleared) ? o.cleared.filter(k => STAGE_KEYS.includes(k)) : [];
+  d.stages = [...new Set(['meadow', ...d.cleared, ...(Array.isArray(o.stages) ? o.stages.filter(k => STAGE_KEYS.includes(k)) : [])])];
+  d.fields = Array.isArray(o.fields) && o.fields.length ? [...d.fields, ...o.fields] : d.fields;
+  d.passives = Array.isArray(o.passives) && o.passives.length ? [...d.passives, ...o.passives] : d.passives;
+  d.questsClaimed = o.questsClaimed && typeof o.questsClaimed === 'object' ? o.questsClaimed : {};
+  d.shiny = o.shiny || {};
+  d.dexSeen = o.dexSeen || {};
+  d.dexCaught = o.dexCaught || {};
+  d.settings = Object.assign(baseSettings(), o.settings || {});
+  d.createdAt = o.createdAt || Date.now();
+  const earned = [];
+  for (const key of Object.keys(d.questsClaimed)) {
+    const q = QUEST_BY_KEY[key];
+    if (q && q.reward && q.reward.char) earned.push(q.reward.char);
+  }
+  d.unlocked = [...new Set([...STARTER_KEYS, ...earned])];
+  d.notice = 'v5_unlock';
+  return normalize(d);
+}
+
+function readJSON(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export function getSave() {
   if (data) return data;
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) {
-      const p = JSON.parse(raw);
-      data = Object.assign(defaultSave(), p);
-      data.upgrades = Object.assign(Object.fromEntries(UPGRADES.map(u => [u.key, 0])), p.upgrades || {});
-      data.settings = Object.assign(baseSettings(), p.settings || {});
-      data.stats = Object.assign(baseStats(), p.stats || {});
-      // 구버전(코인 해금) 세이브 호환
-      // 새 로스터가 추가돼도 기존 세이브가 그대로 이어지도록, 기본 해금 목록은 항상 합집합으로 병합한다.
-      const baseUnlocked = defaultSave().unlocked;
-      if (!Array.isArray(data.unlocked) || !data.unlocked.length) data.unlocked = baseUnlocked;
-      else data.unlocked = [...new Set([...data.unlocked, ...baseUnlocked])];
-      if (!Array.isArray(data.stages) || !data.stages.length) data.stages = ['meadow'];
-      if (!Array.isArray(data.fields) || !data.fields.length) data.fields = Object.keys(FIELD_ITEMS).filter(k => !LOCKED_FIELDS[k]);
-      if (!Array.isArray(data.passives) || !data.passives.length) data.passives = Object.keys(PASSIVES).filter(k => !LOCKED_PASSIVES[k]);
-      if (!data.questsClaimed || typeof data.questsClaimed !== 'object') data.questsClaimed = {};
-      if (!Array.isArray(data.cleared)) data.cleared = [];
-    } else {
-      data = defaultSave();
-      // v3 세이브 마이그레이션 (코인 해금 시절 진행도 보존)
-      try {
-        const oldRaw = localStorage.getItem('pokeSurvivor.save.v3');
-        if (oldRaw) {
-          const o = JSON.parse(oldRaw);
-          data.coins = o.coins || 0;
-          data.dust = o.dust || 0;
-          data.upgrades = Object.assign(data.upgrades, o.upgrades || {});
-          if (Array.isArray(o.unlocked)) data.unlocked = [...new Set([...data.unlocked, ...o.unlocked])];
-          data.shiny = o.shiny || {};
-          data.dexSeen = o.dexSeen || {};
-          data.dexCaught = o.dexCaught || {};
-          data.cleared = Array.isArray(o.cleared) ? o.cleared : [];
-          data.stages = [...new Set(['meadow', ...data.cleared])];
-          data.settings = Object.assign(data.settings, o.settings || {});
-          data.stats.runs = o.runs || 0;
-          data.stats.wins = o.wins || 0;
-          data.stats.kills = o.kills || 0;
-          data.stats.playTime = 0;
-          data.cleared.forEach(k => { data.stats.clears[k] = data.stats.clears[k] || 1; });
-          data.wins = o.wins || 0;
-          persist();
-        }
-      } catch (e) { /* ignore */ }
-    }
-  } catch (e) {
-    data = defaultSave();
+  const cur = readJSON(SAVE_KEY);
+  if (cur) {
+    data = normalize(Object.assign(defaultSave(), cur));
+    return data;
   }
+  /* v5 이전 세이브 이전 */
+  const v4 = readJSON(LEGACY_SAVE_KEYS[0]);
+  if (v4) {
+    data = migrateV4(v4);
+    persist();
+    return data;
+  }
+  const v3 = readJSON(LEGACY_SAVE_KEYS[1]);
+  if (v3) {
+    data = defaultSave();
+    data.coins = v3.coins || 0;
+    data.dust = v3.dust || 0;
+    data.upgrades = Object.assign(data.upgrades, v3.upgrades || {});
+    data.shiny = v3.shiny || {};
+    data.dexSeen = v3.dexSeen || {};
+    data.dexCaught = v3.dexCaught || {};
+    data.cleared = Array.isArray(v3.cleared) ? v3.cleared.filter(k => STAGE_KEYS.includes(k)) : [];
+    data.stages = [...new Set(['meadow', ...data.cleared])];
+    data.settings = Object.assign(data.settings, v3.settings || {});
+    data.stats.runs = v3.runs || 0;
+    data.stats.wins = v3.wins || 0;
+    data.stats.kills = v3.kills || 0;
+    data.stats.maxLevel = v3.maxLevel || 1;
+    data.stats.bestKills = v3.kills || 0;
+    data.cleared.forEach(k => { data.stats.clears[k] = data.stats.clears[k] || 1; });
+    data.wins = v3.wins || 0;
+    data.notice = 'v5_unlock';
+    data = normalize(data);
+    persist();
+    return data;
+  }
+  data = defaultSave();
   return data;
 }
 
 export function persist() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(getSave())); } catch (e) { /* quota */ }
+}
+
+/* ---------- 진행사항 초기화 ---------- */
+/* 설정(효과음·시야 등)만 남기고 모든 진행을 처음 상태로 되돌린다. */
+export function resetProgress() {
+  const keepSettings = Object.assign(baseSettings(), (data && data.settings) || baseSettings());
+  data = defaultSave();
+  data.settings = keepSettings;
+  try {
+    localStorage.removeItem(SAVE_KEY);
+    LEGACY_SAVE_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } });
+  } catch (e) { /* ignore */ }
+  persist();
+  return data;
+}
+
+/* 세이브 개편 안내 (1회 표시) */
+export function consumeNotice() {
+  const s = getSave();
+  const n = s.notice || null;
+  if (n) { delete s.notice; persist(); }
+  return n;
 }
 
 export function upgradeCost(u) {
@@ -163,6 +250,14 @@ function queuePersist() {
   persistTimer = setTimeout(() => { persistTimer = null; persist(); }, 400);
 }
 
+function addMap(dst, src) {
+  if (!src) return;
+  for (const k of Object.keys(src)) {
+    const v = Number(src[k]) || 0;
+    if (v) dst[k] = (dst[k] || 0) + v;
+  }
+}
+
 export function recordRun(run) {
   const s = getSave();
   const st = s.stats;
@@ -171,14 +266,22 @@ export function recordRun(run) {
   st.runs += 1;
   st.kills += run.kills || 0;
   st.bossKills += run.bosses || 0;
+  st.elites += run.elites || 0;
+  st.legends += run.legends || 0;
   st.awakens += run.awakens || 0;
   st.supers += run.supers || 0;
   st.megas += run.megas || 0;
+  st.evolutions += run.evolutions || 0;
   st.chests += run.chests || 0;
   st.shinies += run.shinies || 0;
+  st.coinsEarned = (st.coinsEarned || 0) + Math.round(run.coins || 0);
   st.maxLevel = Math.max(st.maxLevel, run.level || 1);
   st.bestKills = Math.max(st.bestKills, run.kills || 0);
+  st.bestTime = Math.max(st.bestTime || 0, Math.round(run.time || 0));
+  st.noHitBest = Math.max(st.noHitBest || 0, Math.round(run.noHitBest || 0));
   st.playTime += Math.round(run.time || 0);
+  addMap(st.killsByType, run.killsByType);
+  addMap(st.killsByWeapon, run.killsByWeapon);
   if (run.win) {
     s.wins = (s.wins || 0) + 1;
     st.wins = s.wins;
@@ -192,22 +295,115 @@ export function recordRun(run) {
 }
 
 /* ---------- 퀘스트 ---------- */
-export function questValue(q) {
+const STAGE_LABEL = {
+  meadow: '관동 초원', cave: '은빛 동굴', sky: '하늘 제단', forest: '보라타운 유령숲',
+  aqua: '심해 아쿠아 신전', volcano: '태초의 마그마 화산', rift: '뒤틀린 시공의 틈'
+};
+
+export function questValue(g) {
   const s = getSave();
-  const g = q.goal || {};
-  if (g.stat === 'clears') return s.stats.clears[g.key] || 0;
-  if (g.stat === 'wins') return s.stats.wins || s.wins || 0;
-  if (g.stat === 'stageCount') return s.stages.length;
-  return s.stats[g.stat] || 0;
+  const st = s.stats;
+  switch (g.stat) {
+    case 'clears': return st.clears[g.key] || 0;
+    case 'wins': return st.wins || s.wins || 0;
+    case 'stageCount': return s.stages.length;
+    case 'killsType': return (st.killsByType && st.killsByType[g.type]) || 0;
+    case 'killsWeapon': return (st.killsByWeapon && st.killsByWeapon[g.weapon]) || 0;
+    case 'elites': return st.elites || 0;
+    case 'legends': return st.legends || 0;
+    case 'evolutions': return st.evolutions || 0;
+    case 'coins': return st.coinsEarned || 0;
+    case 'dexCaught': return Object.keys(s.dexCaught || {}).length;
+    case 'stageCleared': return (s.cleared || []).length;
+    case 'noHit': return st.noHitBest || 0;
+    case 'bestTime': return st.bestTime || 0;
+    case 'bestKills': return st.bestKills || 0;
+    default: return st[g.stat] || 0;
+  }
+}
+
+/* 목표 한 줄 이름 — 캐릭터 선택/퀘스트 화면 공용 */
+export function goalLabel(g) {
+  switch (g.stat) {
+    case 'kills': return '누적 처치';
+    case 'killsType': return `${g.type} 타입 적`;
+    case 'killsWeapon': return `${(WEAPONS[g.weapon] && WEAPONS[g.weapon].name) || g.weapon}로 처치`;
+    case 'clears': return `${STAGE_LABEL[g.key] || g.key} 클리어`;
+    case 'wins': return '스테이지 클리어';
+    case 'bossKills': return '보스 처치';
+    case 'elites': return '엘리트 처치';
+    case 'chests': return '보물 상자';
+    case 'shinies': return '이로치 처치';
+    case 'legends': return '환상 포획';
+    case 'awakens': return '각성 기술 해금';
+    case 'supers': return '초각성 완성';
+    case 'megas': return '메가·거다이 달성';
+    case 'maxLevel': return '한 판 최고 레벨';
+    case 'bestKills': return '한 판 최다 처치';
+    case 'bestTime': return '한 판 최고 생존';
+    case 'noHit': return '무피격 생존';
+    case 'coins': return '누적 코인 획득';
+    case 'evolutions': return '진화 달성';
+    case 'dexCaught': return '도감 포획';
+    case 'playTime': return '누적 플레이';
+    case 'runs': return '모험 횟수';
+    case 'stageCount': return '스테이지 개방';
+    default: return g.stat;
+  }
+}
+
+/* 값 표기: 시간형은 m:ss, 코인은 천 단위 */
+export function goalValueText(g, v) {
+  if (g.stat === 'bestTime' || g.stat === 'noHit') {
+    const t = Math.max(0, Math.round(v));
+    return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+  }
+  if (g.stat === 'playTime') return `${Math.floor(v / 60)}분`;
+  if (g.stat === 'coins') return v.toLocaleString();
+  return String(Math.floor(v));
+}
+
+export function goalNeedText(g) {
+  const n = g.n || 1;
+  if (g.stat === 'bestTime' || g.stat === 'noHit') {
+    return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+  }
+  if (g.stat === 'playTime') return `${Math.floor(n / 60)}분`;
+  if (g.stat === 'coins') return n.toLocaleString();
+  return String(n);
+}
+
+export function questGoalText(q) {
+  const goals = (q.goal && q.goal.all) || [q.goal || {}];
+  return goals.map(g => g.stat === 'clears' ? goalLabel(g) : `${goalLabel(g)} ${goalNeedText(g)}`).join(' · ');
+}
+
+export function questProgress(q) {
+  const goals = (q.goal && q.goal.all) || [q.goal || {}];
+  return goals.map(g => {
+    const need = g.n || 1;
+    const raw = questValue(g);
+    const cur = Math.min(need, raw);
+    return {
+      goal: g, need, raw, cur,
+      label: goalLabel(g),
+      curText: goalValueText(g, cur),
+      needText: goalValueText(g, need),
+      pct: need > 0 ? Math.min(100, Math.round(cur / need * 100)) : 100,
+      done: cur >= need
+    };
+  });
 }
 
 export function questState(q) {
   const s = getSave();
-  const need = (q.goal && q.goal.n) || 1;
-  const cur = Math.min(need, questValue(q));
-  const done = cur >= need;
+  const parts = questProgress(q);
+  const done = parts.every(p => p.done);
   const claimed = !!s.questsClaimed[q.key];
-  return { cur, need, done, claimed, pct: Math.min(100, Math.round(cur / need * 100)) };
+  const pct = Math.round(parts.reduce((a, p) => a + p.pct, 0) / Math.max(1, parts.length));
+  const cur = parts.reduce((a, p) => a + p.cur, 0);
+  const need = parts.reduce((a, p) => a + p.need, 0);
+  return { cur, need, done, claimed, pct: claimed ? 100 : pct, parts };
 }
 
 export function questRewardText(q) {
@@ -218,7 +414,7 @@ export function questRewardText(q) {
     const c = CHARACTERS.find(x => x.key === r.char);
     bits.push(`해금 ${c ? c.chain[0].name : r.char}`);
   }
-  if (r.stage) bits.push(`스테이지 ${r.stage === 'cave' ? '은빛 동굴' : r.stage === 'sky' ? '하늘 제단' : r.stage === 'forest' ? '보라타운 유령숲' : r.stage === 'aqua' ? '심해 아쿠아 신전' : r.stage === 'volcano' ? '태초의 마그마 화산' : '뒤틀린 시공의 틈'}`);
+  if (r.stage) bits.push(`스테이지 ${STAGE_LABEL[r.stage] || r.stage}`);
   if (r.passive) bits.push(`패시브 ${PASSIVES[r.passive] ? PASSIVES[r.passive].name : r.passive}`);
   if (r.field) bits.push(`아이템 ${FIELD_ITEMS[r.field] ? FIELD_ITEMS[r.field].name : r.field}`);
   return bits.join(' · ');
@@ -255,6 +451,12 @@ export function firstUnclaimedQuest() {
     const st = questState(q);
     if (st.done && !st.claimed) return q;
   }
+  return null;
+}
+
+/* 캐릭터를 해금하는 퀘스트 */
+export function questForChar(charKey) {
+  for (const q of QUESTS) if (q.reward && q.reward.char === charKey) return q;
   return null;
 }
 

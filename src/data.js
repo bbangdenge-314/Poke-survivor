@@ -1,8 +1,9 @@
 /* ============================================================
    POKE SURVIVOR — 데이터 계층 (확장판)
    포켓몬 109종 / 기술 22종 + 초각성 25종 / 적 기믹 / 7개 스테이지
-   메가진화·거다이맥스 / 인게임 진화 퀘스트 / 메타 퀘스트
+   메가진화·거다이맥스 / 인게임 진화 퀘스트 / 퀘스트 해금
    ============================================================ */
+import { UNLOCK_QUESTS, UNLOCK_BY_CHAR } from './unlock-quests.js?v=26';
 
 export const TYPE_COLORS = {
   노말: '#b9b9a0', 불꽃: '#f08030', 물: '#6890f0', 풀: '#78c850', 전기: '#f7d02c',
@@ -1146,6 +1147,22 @@ export const CHARACTERS = [
     evoQuests:[{label:'적 360마리 · 2분 생존', goals:{kills:360,time:120}}, {label:'적 1200마리 · 보스 2마리 · 5분 생존', goals:{kills:1200,bosses:2,time:300}}] },
 ];
 
+/* ---------- 해금 구조 ----------
+   스타터 5종만 처음부터 열려 있고, 나머지 104종은 전용 퀘스트로 하나씩 해금한다. */
+export const STARTER_KEYS = ['bulbasaur', 'charmander', 'squirtle', 'pikachu', 'eevee'];
+for (const c of CHARACTERS) {
+  if (STARTER_KEYS.includes(c.key)) {
+    delete c.unlockQuest;
+    continue;
+  }
+  c.unlockQuest = (UNLOCK_BY_CHAR[c.key] && UNLOCK_BY_CHAR[c.key].key) || c.unlockQuest;
+  if (c.rank === '스타터') c.rank = '일반';
+}
+
+/* 퀘스트가 없는 캐릭터가 남아 있으면 개발 중 실수를 바로 알 수 있게 표시 */
+export const CHAR_WITHOUT_QUEST = CHARACTERS.filter(c => c.unlockQuest && !UNLOCK_BY_CHAR[c.key]).map(c => c.key);
+export const CHAR_IN_QUEST_NOT_ROSTER = UNLOCK_QUESTS.filter(q => !CHARACTERS.some(c => c.key === q.char)).map(q => q.char);
+
 export const CHAR_BY_KEY = Object.fromEntries(CHARACTERS.map(c => [c.key, c]));
 export const BRANCH_NAMES = { 134:'샤미드', 135:'쥬피썬더', 136:'부스터', 196:'에브이', 197:'블래키' };
 export const BRANCH_WEAPON = { 134:'water', 135:'thunder', 136:'flame', 196:'psychic', 197:'nightmare' };
@@ -1465,7 +1482,7 @@ export const UPGRADES = [
 
 /* ---------- 메타 퀘스트 (해금 시스템) ---------- */
 /* goal.stat 은 save.stats 의 값을 본다. clears.<stageKey> 는 stagesCleared 로 집계 */
-export const QUESTS = [
+export const META_QUESTS = [
   { key:'q_first_run', cat:'모험', icon:'🚩', name:'첫 발걸음', desc:'모험을 1회 시작한다',
     goal:{ stat:'runs', n:1 }, reward:{ coins:150 } },
   { key:'q_win_1', cat:'모험', icon:'🏆', name:'첫 클리어', desc:'스테이지를 1회 클리어한다',
@@ -1473,45 +1490,45 @@ export const QUESTS = [
   { key:'q_kills_50', cat:'전투', icon:'💥', name:'백전연마', desc:'누적 적 50마리 처치',
     goal:{ stat:'kills', n:50 }, reward:{ coins:120, passive:'crit' } },
   { key:'q_kills_150', cat:'전투', icon:'⚔️', name:'숙련된 트레이너', desc:'누적 적 150마리 처치',
-    goal:{ stat:'kills', n:150 }, reward:{ char:'machamp', field:'bomb' } },
+    goal:{ stat:'kills', n:150 }, reward:{ field:'bomb' } },
   { key:'q_kills_300', cat:'전투', icon:'🔥', name:'학살자', desc:'누적 적 300마리 처치',
-    goal:{ stat:'kills', n:300 }, reward:{ char:'blastoise', coins:250 } },
+    goal:{ stat:'kills', n:300 }, reward:{ coins:250 } },
   { key:'q_kills_1000', cat:'전투', icon:'☠️', name:'전설의 트레이너', desc:'누적 적 1000마리 처치',
     goal:{ stat:'kills', n:1000 }, reward:{ coins:1200 } },
   { key:'q_runs_3', cat:'모험', icon:'📘', name:'단골 손님', desc:'모험을 3회 완료',
     goal:{ stat:'runs', n:3 }, reward:{ passive:'regen', coins:120 } },
   { key:'q_runs_10', cat:'모험', icon:'🧭', name:'베테랑', desc:'모험을 10회 완료',
-    goal:{ stat:'runs', n:10 }, reward:{ char:'lapras', coins:300 } },
+    goal:{ stat:'runs', n:10 }, reward:{ coins:300 } },
   { key:'q_wins_3', cat:'모험', icon:'👑', name:'정복자', desc:'스테이지를 3회 클리어',
-    goal:{ stat:'wins', n:3 }, reward:{ char:'cinderace', coins:400 } },
+    goal:{ stat:'wins', n:3 }, reward:{ coins:400 } },
   { key:'q_clear_meadow', cat:'스테이지', icon:'🌱', name:'초원의 끝', desc:'관동 초원 클리어',
-    goal:{ stat:'clears', key:'meadow', n:1 }, reward:{ stage:'cave', char:'charizard' } },
+    goal:{ stat:'clears', key:'meadow', n:1 }, reward:{ stage:'cave' } },
   { key:'q_clear_cave', cat:'스테이지', icon:'⛰️', name:'동굴의 비밀', desc:'은빛 동굴 클리어',
-    goal:{ stat:'clears', key:'cave', n:1 }, reward:{ stage:'sky', char:'venusaur', field:'guard' } },
+    goal:{ stat:'clears', key:'cave', n:1 }, reward:{ stage:'sky', field:'guard' } },
   { key:'q_clear_sky', cat:'스테이지', icon:'☁️', name:'하늘의 성소', desc:'하늘 제단 클리어',
-    goal:{ stat:'clears', key:'sky', n:1 }, reward:{ stage:'forest', char:'metagross', field:'haste' } },
+    goal:{ stat:'clears', key:'sky', n:1 }, reward:{ stage:'forest', field:'haste' } },
   { key:'q_clear_forest', cat:'스테이지', icon:'👻', name:'안개 너머', desc:'보라타운 유령숲 클리어',
-    goal:{ stat:'clears', key:'forest', n:1 }, reward:{ stage:'aqua', char:'darkrai' } },
+    goal:{ stat:'clears', key:'forest', n:1 }, reward:{ stage:'aqua' } },
   { key:'q_clear_aqua', cat:'스테이지', icon:'🌊', name:'심해의 문', desc:'심해 아쿠아 신전 클리어',
-    goal:{ stat:'clears', key:'aqua', n:1 }, reward:{ stage:'volcano', char:'lugia' } },
+    goal:{ stat:'clears', key:'aqua', n:1 }, reward:{ stage:'volcano' } },
   { key:'q_clear_volcano', cat:'스테이지', icon:'🌋', name:'불의 정점', desc:'태초의 마그마 화산 클리어',
-    goal:{ stat:'clears', key:'volcano', n:1 }, reward:{ stage:'rift', char:'mewtwo' } },
+    goal:{ stat:'clears', key:'volcano', n:1 }, reward:{ stage:'rift' } },
   { key:'q_clear_rift', cat:'스테이지', icon:'🌌', name:'시공의 지배자', desc:'뒤틀린 시공의 틈 클리어',
-    goal:{ stat:'clears', key:'rift', n:1 }, reward:{ char:'tyranitar', coins:800 } },
+    goal:{ stat:'clears', key:'rift', n:1 }, reward:{ coins:800 } },
   { key:'q_boss_10', cat:'보스', icon:'🦖', name:'보스 사냥꾼', desc:'보스 10마리 처치',
     goal:{ stat:'bossKills', n:10 }, reward:{ coins:400 } },
   { key:'q_boss_20', cat:'보스', icon:'🐲', name:'보스 킬러', desc:'보스 20마리 처치',
-    goal:{ stat:'bossKills', n:20 }, reward:{ char:'dragonite', coins:300 } },
+    goal:{ stat:'bossKills', n:20 }, reward:{ coins:300 } },
   { key:'q_awakens_3', cat:'조합', icon:'✨', name:'각성의 시작', desc:'각성 기술 3회 해금',
     goal:{ stat:'awakens', n:3 }, reward:{ coins:350 } },
   { key:'q_awakens_5', cat:'조합', icon:'🌟', name:'각성 마스터', desc:'각성 기술 5회 해금',
-    goal:{ stat:'awakens', n:5 }, reward:{ char:'alakazam' } },
+    goal:{ stat:'awakens', n:5 }, reward:{ coins:500 } },
   { key:'q_super_1', cat:'조합', icon:'💠', name:'초각성', desc:'초각성 기술 1회 완성',
-    goal:{ stat:'supers', n:1 }, reward:{ char:'rayquaza', coins:300 } },
+    goal:{ stat:'supers', n:1 }, reward:{ coins:600 } },
   { key:'q_mega_1', cat:'진화', icon:'🔆', name:'한계 초월', desc:'메가진화 또는 거다이맥스 1회',
-    goal:{ stat:'megas', n:1 }, reward:{ char:'mew', coins:400 } },
+    goal:{ stat:'megas', n:1 }, reward:{ coins:700 } },
   { key:'q_chest_20', cat:'탐험', icon:'🎁', name:'보물 사냥꾼', desc:'보물 상자 20개 획득',
-    goal:{ stat:'chests', n:20 }, reward:{ char:'jirachi', coins:200 } },
+    goal:{ stat:'chests', n:20 }, reward:{ coins:200 } },
   { key:'q_level_30', cat:'성장', icon:'📈', name:'고수', desc:'한 판에서 Lv.30 달성',
     goal:{ stat:'maxLevel', n:30 }, reward:{ coins:500 } },
   { key:'q_shiny_1', cat:'탐험', icon:'💠', name:'빛나는 인연', desc:'이로치 포켓몬 1마리 처치',
@@ -1519,6 +1536,9 @@ export const QUESTS = [
   { key:'q_time_3600', cat:'성장', icon:'⏳', name:'긴 여정', desc:'누적 1시간 플레이',
     goal:{ stat:'playTime', n:3600 }, reward:{ coins:1000 } }
 ];
+
+/* 캐릭터 해금 퀘스트까지 합친 전체 퀘스트 (26 + 104 = 130) */
+export const QUESTS = [...META_QUESTS, ...UNLOCK_QUESTS];
 
 export const QUEST_BY_KEY = Object.fromEntries(QUESTS.map(q => [q.key, q]));
 
@@ -1533,4 +1553,5 @@ export const VIEW_MODES = {
   huge:    { name:'아주 크게', zoom:1.3, scale:1.24 }
 };
 
-export const SAVE_KEY = 'pokeSurvivor.save.v4';
+export const SAVE_KEY = 'pokeSurvivor.save.v5';
+export const LEGACY_SAVE_KEYS = ['pokeSurvivor.save.v4', 'pokeSurvivor.save.v3'];

@@ -3,15 +3,16 @@
    ============================================================ */
 import {
   CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES,
-  TYPE_COLORS, BRANCH_NAMES, FIELD_ITEMS, SUPER_AWAKENS, QUESTS, QUEST_BY_KEY, VIEW_MODES
-} from './data.js?v=25';
-import { spriteURL } from './sprites.js?v=25';
-import { setCryEnabled } from './sprites.js?v=25';
-import { setSfxEnabled } from './audio.js?v=25';
+  TYPE_COLORS, BRANCH_NAMES, FIELD_ITEMS, SUPER_AWAKENS, QUESTS, QUEST_BY_KEY, VIEW_MODES, STARTER_KEYS
+} from './data.js?v=26';
+import { spriteURL } from './sprites.js?v=26';
+import { setCryEnabled } from './sprites.js?v=26';
+import { setSfxEnabled } from './audio.js?v=26';
 import {
   getSave, upgradeCost, buyUpgrade, isUnlocked, isStageUnlocked, isPassiveUnlocked,
-  isFieldUnlocked, questState, claimQuest, questRewardText, setSetting, toggleSetting, persist
-} from './save.js?v=25';
+  isFieldUnlocked, questState, questProgress, questGoalText, questRewardText, questForChar, claimQuest,
+  resetProgress, consumeNotice, setSetting, toggleSetting, persist
+} from './save.js?v=26';
 
 const $ = id => document.getElementById(id);
 const AFFINITY_LABEL = id => WEAPONS[id] ? `${WEAPONS[id].icon}${WEAPONS[id].name}` : id;
@@ -61,6 +62,7 @@ export class UI {
     const cleared = s.cleared.length;
     const dexCaught = Object.keys(s.dexCaught).length;
     const nextQuest = this.nextQuest();
+    const nextUnlock = this.nextUnlock();
     const div = this.screen(`
       <div class="lobby">
         <div class="lobby-deco">
@@ -106,7 +108,11 @@ export class UI {
           ${nextQuest
             ? `<span class="ln-tag">다음 퀘스트</span> <b>${nextQuest.icon} ${nextQuest.name}</b> <span>${nextQuest.desc}</span>
                <button class="btn sm gold" id="btnNextQuest">보상 받기</button>`
-            : `<span class="ln-tag">TIP</span> <span>액티브 Lv.6 + 짝 패시브로 <b>각성</b>, 각성 2개를 모으면 <b>초각성</b>!</span>`}
+            : nextUnlock
+              ? `<span class="ln-tag">다음 해금</span> <b>${CHAR_BY_KEY[nextUnlock.q.reward.char].chain[0].name}</b>
+                 <span>${nextUnlock.q.icon} ${nextUnlock.q.name} · ${nextUnlock.st.pct}% 진행</span>
+                 <button class="btn sm gold" id="btnNextUnlock">퀘스트 보기</button>`
+              : `<span class="ln-tag">TIP</span> <span>액티브 Lv.6 + 짝 패시브로 <b>각성</b>, 각성 2개를 모으면 <b>초각성</b>!</span>`}
         </div>
         <p class="tiny center">WASD·방향키 이동 / 모바일은 화면 드래그 · 공격은 자동 · ESC 일시정지</p>
       </div>`);
@@ -120,7 +126,48 @@ export class UI {
     $('btnCombo').onclick = () => this.showCombo();
     $('btnSettings').onclick = () => this.showSettings();
     if ($('btnNextQuest')) $('btnNextQuest').onclick = () => this.showQuests();
+    if ($('btnNextUnlock')) $('btnNextUnlock').onclick = () => { this.questFilter = { status: 'all', cat: '캐릭터 해금', q: '' }; this.showQuests(); };
+    this.maybeShowNotice();
     return div;
+  }
+
+  /* ---------------- 세이브 개편 안내 ---------------- */
+  maybeShowNotice() {
+    const n = consumeNotice();
+    if (!n) return;
+    const locked = CHARACTERS.filter(c => !isUnlocked(c)).length;
+    this.showPanel('noticePanel', `
+      <div class="np-kicker">UPDATE · 퀘스트 해금</div>
+      <h2>포켓몬 해금 방식이 바뀌었어요</h2>
+      <p class="np-lead">이제 <b>스타터 ${STARTER_KEYS.length}종</b>만 처음부터 열리고,
+        나머지 <b>${locked}종</b>은 포켓몬마다 다른 전용 퀘스트를 달성하면 하나씩 열립니다.</p>
+      <div class="np-box">
+        <div><b>그대로 보존</b><span>코인 · 영구강화 · 스테이지 개방 · 클리어 기록 · 도감 · 이로치</span></div>
+        <div><b>새로 시작</b><span>캐릭터 해금 퀘스트 ${locked}종 · 퀘스트 필터와 모두 수령</span></div>
+        <div><b>처음부터</b><span>설정 → 진행사항 초기화로 언제든 리셋할 수 있어요</span></div>
+      </div>
+      <div class="np-actions">
+        <button class="btn primary" id="npQuests">퀘스트 보기</button>
+        <button class="btn ghost" id="npOk">알겠어요</button>
+      </div>`);
+    const close = () => $('noticeOverlay').classList.add('hidden');
+    $('npOk').onclick = close;
+    $('npQuests').onclick = () => { close(); this.showQuests(); };
+  }
+
+  showPanel(bodyId, html) {
+    const body = $(bodyId);
+    if (!body) return null;
+    body.innerHTML = html;
+    const ov = body.closest('.overlay');
+    if (ov) ov.classList.remove('hidden');
+    return body;
+  }
+  hidePanel(id) {
+    const el = $(id);
+    if (!el) return;
+    const ov = el.closest('.overlay');
+    if (ov) ov.classList.add('hidden');
   }
 
   nextQuest() {
@@ -129,6 +176,16 @@ export class UI {
       if (st.done && !st.claimed) return q;
     }
     return null;
+  }
+  nextUnlock() {
+    let best = null;
+    for (const q of QUESTS) {
+      if (!(q.reward && q.reward.char)) continue;
+      const st = questState(q);
+      if (st.claimed || st.done) continue;
+      if (!best || st.pct > best.st.pct) best = { q, st };
+    }
+    return best;
   }
   unclaimedCount() {
     return QUESTS.filter(q => { const st = questState(q); return st.done && !st.claimed; }).length;
@@ -258,11 +315,14 @@ export class UI {
       const owned = !!s.shiny[c.key];
       const on = this.selectedChar === c.key;
       const d = DEX[c.id] || { n: c.chain[0].name, t: [] };
-      return `<button class="char-card ${on ? 'on' : ''} ${unlocked ? '' : 'locked'}" data-char="${c.key}" title="${d.n} · ${c.rank}">
+      const q = unlocked ? null : questForChar(c.key);
+      const qs = q ? questState(q) : null;
+      return `<button class="char-card ${on ? 'on' : ''} ${unlocked ? '' : 'locked'}" data-char="${c.key}" title="${d.n} · ${c.rank}${unlocked ? '' : ' · 퀘스트 해금'}">
         ${owned ? '<span class="shiny-dot">✦</span>' : ''}
         <img loading="lazy" src="${spriteURL(c.id, false)}" alt="${c.chain[0].name}">
         <div class="cc-name">${c.chain[0].name}</div>
         <div class="cc-rank ${c.rank === '전설' ? 'legend' : c.rank === '환상' ? 'myth' : ''}">${unlocked ? c.rank : '퀘스트'}</div>
+        ${unlocked ? '' : `<div class="cc-quest"><i style="width:${qs ? qs.pct : 0}%"></i></div><div class="cc-pct">${qs ? qs.pct : 0}%</div>`}
       </button>`;
     }).join('');
     const cnt = $('charCount');
@@ -272,17 +332,92 @@ export class UI {
     grid.querySelectorAll('[data-char]').forEach(el => {
       el.onclick = () => {
         const c = CHAR_BY_KEY[el.dataset.char];
-        if (!isUnlocked(c)) {
-          const q = questOf(c.unlockQuest);
-          this.toast(`잠금 · ${q ? q.name : '퀘스트'} 달성 후 해금!`, 'bad');
-          return;
-        }
         this.selectedChar = c.key;
         if (!getSave().shiny[c.key]) this.shinyPref = false;
         grid.querySelectorAll('.char-card').forEach(x => x.classList.toggle('on', x.dataset.char === c.key));
         this.renderStartPanel();
+        if (!isUnlocked(c)) this.showUnlockInfo(c);
       };
     });
+  }
+
+  /* 잠긴 포켓몬의 해금 퀘스트 + 현재 진행도 */
+  showUnlockInfo(c) {
+    const q = questForChar(c.key);
+    const body = $('lockBody');
+    if (!body) return;
+    const d = DEX[c.id] || { n: c.chain[0].name, t: [] };
+    if (!q) {
+      body.innerHTML = `<div class="lock-head"><img src="${spriteURL(c.id, false)}" alt=""><div><div class="lock-kicker">잠금</div><h2>${d.n}</h2></div></div>
+        <p class="np-lead">해금 조건이 준비되지 않았어요.</p>`;
+      this.showPanel('lockBody', body.innerHTML);
+      return;
+    }
+    const st = questState(q);
+    this.lastLockChar = c.key;
+    body.innerHTML = `
+      <div class="lock-head">
+        <img src="${spriteURL(c.id, false)}" alt="${d.n}">
+        <div class="lock-title">
+          <div class="lock-kicker">🔒 퀘스트로 해금</div>
+          <h2>${d.n}</h2>
+          <div class="lock-types">${(d.t || []).map(t => `<span class="type-chip" style="background:${TYPE_COLORS[t] || '#94a3b8'}">${t}</span>`).join('')}
+            <span class="lock-rank">${c.rank}</span></div>
+        </div>
+        <div class="lock-pct">${st.claimed ? '해금 완료' : st.done ? '달성!' : st.pct + '%'}</div>
+      </div>
+      <div class="lock-quest ${st.done ? 'ready' : ''}">
+        <div class="lq-top">
+          <span class="lq-ico">${q.icon}</span>
+          <div class="lq-name"><span>${q.cat} · 난이도 ${'◆'.repeat(q.tier || 1)}</span><b>${q.name}</b></div>
+        </div>
+        <div class="lq-parts">
+          ${st.parts.map(p => `<div class="lq-part">
+            <div class="lqp-top"><span>${p.label}</span><b>${p.curText} / ${p.needText}</b></div>
+            <div class="q-bar"><i style="width:${p.pct}%"></i></div>
+          </div>`).join('')}
+        </div>
+        <div class="q-reward">보상: ${questRewardText(q)}</div>
+      </div>
+      <div class="lock-actions">
+        <button class="btn primary" id="lockGoQuests">📜 퀘스트 보기</button>
+        <button class="btn ghost" id="lockClose">닫기</button>
+      </div>`;
+    this.showPanel('lockBody', body.innerHTML);
+    $('lockClose').onclick = () => this.hidePanel('lockBody');
+    $('lockGoQuests').onclick = () => { this.hidePanel('lockBody'); this.showQuests(); };
+  }
+
+  /* 잠긴 포켓몬용 미리보기 — 어떤 퀘스트를 깨면 열리는지 + 진행도 */
+  renderLockedPanel(c, st) {
+    const q = questForChar(c.key);
+    const qs = q ? questState(q) : null;
+    const d = DEX[c.id] || { n: c.chain[0].name, t: [] };
+    const pv = $('preview');
+    const startEl = $('startPanel');
+    if (!pv || !startEl) return;
+    pv.innerHTML = `
+      <img class="big locked-img" src="${spriteURL(c.id, false)}" alt="${d.n}">
+      <div class="p-info">
+        <h3>${d.n} <span class="lock-label">🔒 잠금</span></h3>
+        <div class="types">${(d.t || []).map(t => `<span class="type-chip" style="background:${TYPE_COLORS[t] || '#94a3b8'}">${t}</span>`).join('')}</div>
+        <div class="sig"><b>${c.sigName}</b> — ${c.sigDesc}</div>
+        <p class="trait-line">✦ ${c.trait}</p>
+        <div class="lock-quest inline ${qs && qs.done ? 'ready' : ''}">
+          <div class="lq-top"><span class="lq-ico">${q ? q.icon : '🔒'}</span>
+            <div class="lq-name"><span>해금 퀘스트${q ? ' · 난이도 ' + '◆'.repeat(q.tier || 1) : ''}</span><b>${q ? q.name : '준비 중'}</b></div>
+            <strong class="lq-pct">${qs ? (qs.done ? '달성!' : qs.pct + '%') : ''}</strong></div>
+          ${qs ? `<div class="lq-parts">${qs.parts.map(p => `<div class="lq-part"><div class="lqp-top"><span>${p.label}</span><b>${p.curText} / ${p.needText}</b></div><div class="q-bar"><i style="width:${p.pct}%"></i></div></div>`).join('')}</div>` : ''}
+          ${q ? `<div class="q-reward">보상: ${questRewardText(q)}</div>` : ''}
+        </div>
+      </div>`;
+    startEl.innerHTML = `
+      <div class="row"><span>스테이지</span><b>${st.emoji} ${st.name}</b></div>
+      <div class="row"><span>기본 기술</span><b>${WEAPONS[c.weapon].icon} ${WEAPONS[c.weapon].name}</b></div>
+      <div class="start-lock-note">${qs && qs.done ? '퀘스트를 달성했어요! 퀘스트 화면에서 보상을 수령하면 해금됩니다.' : '해금 퀘스트를 달성하면 선택할 수 있어요.'}</div>
+      <button class="btn primary big-start" id="lockInfoBtn">🔒 해금 퀘스트 자세히</button>`;
+    const open = () => this.showUnlockInfo(c);
+    if ($('lockInfoBtn')) $('lockInfoBtn').onclick = open;
   }
 
   renderStartPanel() {
@@ -291,6 +426,7 @@ export class UI {
     const st = STAGE_BY_KEY[this.selectedStage];
     const owned = !!s.shiny[c.key];
     if (!owned) this.shinyPref = false;
+    if (!isUnlocked(c)) { this.renderLockedPanel(c, st); return; }
     const pv = $('preview');
     if (!pv) return;
     const chainHtml = `<div class="chain">${c.chain.map(ch => `<img src="${spriteURL(ch.id, false)}" title="${ch.name}" alt="${ch.name}">`).join('<span>›</span>')}${c.branch ? '<span>›</span><span class="branch-tag">5가지 분기</span>' : ''}${c.special ? `<span>›</span><img class="sp-form" src="${spriteURL(c.special.id, false)}" title="${c.special.name}" alt="${c.special.name}">` : ''}</div>`;
@@ -456,59 +592,183 @@ export class UI {
   }
 
   /* ---------------- 퀘스트 ---------------- */
+  questFilters() {
+    if (!this.questFilter) this.questFilter = { status: 'all', cat: 'all', q: '' };
+    return this.questFilter;
+  }
+  questStatus(q) {
+    const st = questState(q);
+    if (st.claimed) return 'done';
+    if (st.done) return 'ready';
+    return 'doing';
+  }
+  questMatches(q) {
+    const f = this.questFilters();
+    if (f.cat !== 'all' && q.cat !== f.cat) return false;
+    const stt = this.questStatus(q);
+    if (f.status === 'ready' && stt !== 'ready') return false;
+    if (f.status === 'doing' && stt !== 'doing') return false;
+    if (f.status === 'done' && stt !== 'done') return false;
+    if (f.q) {
+      const c = q.reward && q.reward.char ? CHAR_BY_KEY[q.reward.char] : null;
+      const hay = [q.name, q.desc || '', q.cat, q.char || '', c ? c.chain[0].name : '', questGoalText(q)].join(' ').toLowerCase();
+      if (!hay.includes(f.q)) return false;
+    }
+    return true;
+  }
+  countByStatus() {
+    const out = { all: 0, ready: 0, doing: 0, done: 0 };
+    for (const q of QUESTS) {
+      out.all++;
+      out[this.questStatus(q)]++;
+    }
+    return out;
+  }
+
   showQuests() {
     const s = getSave();
-    const cats = [...new Set(QUESTS.map(q => q.cat))];
-    const rows = cats.map(cat => {
-      const list = QUESTS.filter(q => q.cat === cat).map(q => {
-        const st = questState(q);
-        const q2 = questOf(q.key);
-        const rw = questRewardText(q);
-        return `<div class="quest-row ${st.claimed ? 'claimed' : st.done ? 'done' : ''}">
-          <div class="q-ico">${q.icon}</div>
-          <div class="q-body">
-            <div class="q-top"><b>${q.name}</b>${st.claimed ? '<span class="q-tag">수령 완료</span>' : st.done ? '<span class="q-tag ready">보상 수령 가능!</span>' : `<span class="q-prog">${st.cur} / ${st.need}</span>`}</div>
-            <div class="q-desc">${q.desc}</div>
-            <div class="q-bar"><i style="width:${st.claimed ? 100 : st.pct}%"></i></div>
-            <div class="q-reward">보상: ${rw || '—'}</div>
-          </div>
-          <div class="q-act">${st.claimed ? '<span class="pill">✓</span>' : `<button class="btn sm ${st.done ? 'gold' : 'ghost'}" data-claim="${q.key}" ${st.done ? '' : 'disabled'}>${st.done ? '수령' : '진행 중'}</button>`}</div>
-        </div>`;
-      }).join('');
-      return `<div class="section-title">${cat} <span class="cnt">${QUESTS.filter(q => q.cat === cat && questState(q).claimed).length} / ${QUESTS.filter(q => q.cat === cat).length}</span></div><div class="quest-list">${list}</div>`;
-    }).join('');
-
+    const f = this.questFilters();
+    const cnt = this.countByStatus();
+    const cats = ['all', ...new Set(QUESTS.map(q => q.cat))];
     this.screen(`
       <div class="wrap">
         <div class="topbar">
           <h1>📜 퀘스트</h1><span class="spacer"></span>
-          <span class="pill">🪙 <b id="qCoins">${s.coins}</b></span>
+          <span class="pill gold">🪙 <b id="qCoins">${s.coins.toLocaleString()}</b></span>
           <button class="btn sm ghost" id="backBtn">← 로비</button>
         </div>
-        <p class="lead">퀘스트를 달성하면 캐릭터·스테이지·패시브·필드 아이템이 해금됩니다. 진행도는 자동으로 기록돼요.</p>
-        <div class="claim-all-bar"><span>수령 가능 <b id="claimCount">${this.unclaimedCount()}</b>개</span><button class="btn sm gold" id="claimAllBtn" ${this.unclaimedCount() ? '' : 'disabled'}>모두 수령</button></div>
-        ${rows}
+        <p class="lead">포켓몬 해금 퀘스트 <b>${QUESTS.filter(q => q.reward && q.reward.char).length}종</b> + 성장 퀘스트 <b>${QUESTS.filter(q => !(q.reward && q.reward.char)).length}종</b>. 수령한 보상은 캐릭터·스테이지에 바로 반영됩니다.</p>
+        <div class="quest-summary">
+          <div><b id="qsAll">${cnt.all}</b><span>전체</span></div>
+          <div class="ready"><b id="qsReady">${cnt.ready}</b><span>수령 가능</span></div>
+          <div><b id="qsDoing">${cnt.doing}</b><span>진행 중</span></div>
+          <div><b id="qsDone">${cnt.done}</b><span>완료</span></div>
+        </div>
+        <div class="quest-tabs" id="questTabs">
+          ${[['all', '전체'], ['ready', '수령 가능'], ['doing', '진행 중'], ['done', '완료']].map(([k, label]) =>
+            `<button class="qt ${f.status === k ? 'on' : ''}" data-status="${k}">${label}<em>${cnt[k]}</em></button>`).join('')}
+        </div>
+        <div class="filter-bar quest-filter">
+          <div class="fb-search">
+            <span class="fb-ico">🔍</span>
+            <input id="questSearch" type="search" placeholder="퀘스트 · 포켓몬 이름으로 찾기" autocomplete="off" value="${f.q.replace(/"/g, '&quot;')}">
+          </div>
+          <div class="fb-row scroll" id="questCats">
+            ${cats.map(c => `<button class="fb-chip ${f.cat === c ? 'on' : ''}" data-cat="${c}">${c === 'all' ? '전체 카테고리' : c}</button>`).join('')}
+          </div>
+        </div>
+        <div class="claim-all-bar">
+          <span>수령 가능 <b id="claimCount">${cnt.ready}</b>개</span>
+          <button class="btn sm gold" id="claimAllBtn" ${cnt.ready ? '' : 'disabled'}>🎁 보상 모두 수령</button>
+        </div>
+        <div class="quest-list" id="questList"></div>
+        <div class="quest-empty hidden" id="questEmpty">조건에 맞는 퀘스트가 없어요. 필터를 바꿔 보세요.</div>
       </div>`);
-
     $('backBtn').onclick = () => this.showTitle();
-    const claim = key => {
-      const q = QUEST_BY_KEY[key];
-      const r = claimQuest(q);
-      if (r.ok) {
-        this.toast(`🎉 ${q.name} 보상 획득! ${questRewardText(q)}`, 'good');
-        this.showQuests();
-      } else this.toast(r.reason === 'notyet' ? '아직 달성하지 못했어요' : '이미 받았어요', 'bad');
-    };
-    this.root.querySelectorAll('[data-claim]').forEach(el => { el.onclick = () => claim(el.dataset.claim); });
-    const allBtn = $('claimAllBtn');
-    if (allBtn) allBtn.onclick = () => {
+    const onFilter = () => { this.questFilters(); this.renderQuestList(); };
+    this.root.querySelectorAll('[data-status]').forEach(el => {
+      el.onclick = () => { f.status = el.dataset.status; onFilter(); };
+    });
+    this.root.querySelectorAll('[data-cat]').forEach(el => {
+      el.onclick = () => { f.cat = el.dataset.cat; onFilter(); };
+    });
+    $('questSearch').oninput = e => { f.q = e.target.value.trim().toLowerCase(); this.renderQuestList(); };
+    $('claimAllBtn').onclick = () => {
+      let n = 0, coins = 0;
       for (const q of QUESTS) {
         const st = questState(q);
-        if (st.done && !st.claimed) claimQuest(q);
+        if (!st.done || st.claimed) continue;
+        const r = claimQuest(q);
+        if (r.ok) { n++; coins += (q.reward && q.reward.coins) || 0; }
       }
-      this.toast('모든 보상을 수령했어요!', 'good');
+      if (n) this.toast(`🎉 퀘스트 ${n}개 보상 수령! 🪙 +${coins.toLocaleString()}`, 'good');
+      else this.toast('수령할 보상이 없어요', 'bad');
       this.showQuests();
     };
+    this.renderQuestList();
+  }
+
+  renderQuestList() {
+    const list = $('questList');
+    if (!list) return;
+    const f = this.questFilters();
+    const cnt = this.countByStatus();
+    const s = getSave();
+    const rows = QUESTS.filter(q => this.questMatches(q));
+    const rank = { ready: 0, doing: 1, done: 2 };
+    rows.sort((a, b) => {
+      const sa = this.questStatus(a), sb = this.questStatus(b);
+      if (rank[sa] !== rank[sb]) return rank[sa] - rank[sb];
+      const ta = a.tier || (a.char ? 2 : 0), tb = b.tier || (b.char ? 2 : 0);
+      if (ta !== tb) return ta - tb;
+      if (sa === 'doing') {
+        const pa = questState(a).pct, pb = questState(b).pct;
+        if (pa !== pb) return pb - pa;
+      }
+      return 0;
+    });
+    list.innerHTML = rows.map(q => {
+      const st = questState(q);
+      const stt = this.questStatus(q);
+      const ch = q.reward && q.reward.char ? CHAR_BY_KEY[q.reward.char] : null;
+      const unlocked = ch ? isUnlocked(ch) : true;
+      const ico = ch
+        ? `<div class="q-ico q-char ${unlocked ? 'open' : ''}"><img loading="lazy" src="${spriteURL(ch.id, false)}" alt=""><em>${q.icon}</em></div>`
+        : `<div class="q-ico">${q.icon}</div>`;
+      const title = ch ? `${ch.chain[0].name} 해금` : q.cat;
+      const parts = st.parts.map(p => `
+        <div class="q-part">
+          <div class="qp-top"><span>${p.label}</span><b>${p.curText} / ${p.needText}</b></div>
+          <div class="q-bar"><i style="width:${stt === 'done' ? 100 : p.pct}%"></i></div>
+        </div>`).join('');
+      return `<div class="quest-row ${stt}">
+        ${ico}
+        <div class="q-body">
+          <div class="q-top">
+            <b>${q.name}</b>
+            <span class="q-cat">${title}${q.tier ? ' · ' + '◆'.repeat(q.tier) : ''}</span>
+            ${stt === 'ready' ? '<span class="q-tag ready">보상 수령 가능!</span>'
+              : stt === 'done' ? '<span class="q-tag">✓ 완료</span>'
+              : `<span class="q-prog">${st.pct}%</span>`}
+          </div>
+          <div class="q-desc">${q.desc || questGoalText(q)}</div>
+          <div class="q-parts">${parts}</div>
+          <div class="q-reward">보상: ${questRewardText(q) || '—'}</div>
+        </div>
+        <div class="q-act">
+          ${stt === 'done' ? '<span class="pill green">✓</span>'
+            : `<button class="btn sm ${stt === 'ready' ? 'gold' : 'ghost'}" data-claim="${q.key}" ${stt === 'ready' ? '' : 'disabled'}>${stt === 'ready' ? '수령' : '진행 중'}</button>`}
+        </div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-claim]').forEach(el => {
+      el.onclick = () => {
+        const q = QUEST_BY_KEY[el.dataset.claim];
+        const r = claimQuest(q);
+        if (r.ok) {
+          this.toast(`🎉 ${q.name} 보상 획득! ${questRewardText(q)}`, 'good');
+          this.showQuests();
+        } else this.toast(r.reason === 'notyet' ? '아직 달성하지 못했어요' : '이미 받았어요', 'bad');
+      };
+    });
+    const empty = $('questEmpty');
+    if (empty) empty.classList.toggle('hidden', rows.length > 0);
+    const all = this.countByStatus();
+    if ($('qsAll')) $('qsAll').textContent = all.all;
+    if ($('qsReady')) $('qsReady').textContent = all.ready;
+    if ($('qsDoing')) $('qsDoing').textContent = all.doing;
+    if ($('qsDone')) $('qsDone').textContent = all.done;
+    if ($('claimCount')) $('claimCount').textContent = all.ready;
+    if ($('qCoins')) $('qCoins').textContent = s.coins.toLocaleString();
+    const allBtn = $('claimAllBtn');
+    if (allBtn) allBtn.disabled = !all.ready;
+    this.root.querySelectorAll('[data-status]').forEach(el => {
+      el.classList.toggle('on', el.dataset.status === f.status);
+      const n = all[el.dataset.status];
+      const em = el.querySelector('em');
+      if (em) em.textContent = n;
+    });
+    this.root.querySelectorAll('[data-cat]').forEach(el => el.classList.toggle('on', el.dataset.cat === f.cat));
   }
 
   /* ---------------- 도감 ---------------- */
@@ -611,11 +871,19 @@ export class UI {
           </div>
         </div>
         <div class="settings-card soft">
-          <div class="set-row"><div><b>저장 데이터</b><small>진행 상황은 브라우저 localStorage에 저장됩니다</small></div><span class="pill">v4</span></div>
-          <div class="set-row"><div><b>누적 플레이</b><small>${Math.floor((s.stats.playTime || 0) / 60)}분 · 모험 ${s.stats.runs}회</small></div></div>
+          <div class="set-row"><div><b>저장 데이터</b><small>진행 상황은 브라우저 localStorage에 저장됩니다</small></div><span class="pill">v5</span></div>
+          <div class="set-row"><div><b>누적 플레이</b><small>${Math.floor((s.stats.playTime || 0) / 60)}분 · 모험 ${s.stats.runs}회 · 해금 ${s.unlocked.length}/${CHARACTERS.length}종</small></div></div>
+        </div>
+        <div class="settings-card danger-zone">
+          <div class="set-row">
+            <div><b>🗑️ 진행사항 초기화</b><small>코인 · 영구강화 · 해금 포켓몬/스테이지 · 퀘스트 · 도감 · 기록을 모두 지우고 스타터 ${STARTER_KEYS.length}종으로 새로 시작합니다. (설정은 유지)</small></div>
+            <button class="btn sm danger" id="resetBtn">진행사항 초기화</button>
+          </div>
         </div>
       </div>`);
     $('backBtn').onclick = () => this.showTitle();
+    const rb = $('resetBtn');
+    if (rb) rb.onclick = () => this.confirmReset(1);
     $('setSfx').onclick = () => { const v = toggleSetting('sfx'); setSfxEnabled(v); this.showSettings(); };
     $('setCry').onclick = () => { const v = toggleSetting('cries'); setCryEnabled(v); this.showSettings(); };
     $('setShake').onclick = () => { toggleSetting('shake'); if (this.game) this.game.applySettings(); this.showSettings(); };
@@ -626,6 +894,58 @@ export class UI {
         this.showSettings();
       };
     });
+  }
+
+  /* ---------------- 진행사항 초기화 (2중 확인) ---------------- */
+  confirmReset(step) {
+    const s = getSave();
+    if (step === 1) {
+      this.showPanel('confirmPanel', `
+        <div class="cf-kicker">DANGER ZONE</div>
+        <h2>진행사항을 초기화할까요?</h2>
+        <p class="np-lead">모든 진행이 사라지고 <b>스타터 ${STARTER_KEYS.length}종</b>만 열린 처음 상태가 됩니다.</p>
+        <div class="cf-box">
+          <div><span>🪙 코인</span><b>${s.coins.toLocaleString()}</b></div>
+          <div><span>🐾 해금 포켓몬</span><b>${s.unlocked.length} / ${CHARACTERS.length}</b></div>
+          <div><span>🗺️ 개방 스테이지</span><b>${s.stages.length} / ${STAGES.length}</b></div>
+          <div><span>📜 수령한 퀘스트</span><b>${Object.keys(s.questsClaimed).length}</b></div>
+          <div><span>📖 도감 포획</span><b>${Object.keys(s.dexCaught).length}</b></div>
+          <div><span>⚔️ 모험 기록</span><b>${s.stats.runs}회</b></div>
+        </div>
+        <div class="cf-actions">
+          <button class="btn ghost" id="cfCancel">취소</button>
+          <button class="btn danger" id="cfNext">계속 →</button>
+        </div>`);
+      $('cfCancel').onclick = () => this.hidePanel('confirmPanel');
+      $('cfNext').onclick = () => this.confirmReset(2);
+      return;
+    }
+    this.showPanel('confirmPanel', `
+      <div class="cf-kicker">LAST CHECK</div>
+      <h2>정말 되돌릴 수 없어요</h2>
+      <p class="np-lead">코인·영구강화·모든 해금과 기록이 즉시 삭제됩니다.<br>그래도 초기화하려면 아래 확인란을 체크하세요.</p>
+      <label class="cf-check" id="cfCheckLabel">
+        <input type="checkbox" id="cfCheck">
+        <span>위 내용을 확인했고, 되돌릴 수 없음을 이해했습니다.</span>
+      </label>
+      <div class="cf-actions">
+        <button class="btn ghost" id="cfCancel2">취소</button>
+        <button class="btn danger" id="cfRun" disabled>🗑️ 초기화 실행</button>
+      </div>`);
+    $('cfCancel2').onclick = () => this.hidePanel('confirmPanel');
+    $('cfCheck').onchange = e => { $('cfRun').disabled = !e.target.checked; };
+    $('cfRun').onclick = () => {
+      if (!$('cfCheck').checked) return;
+      resetProgress();
+      this.hidePanel('confirmPanel');
+      this.selectedChar = STARTER_KEYS[0];
+      this.selectedStage = STAGES[0].key;
+      this.shinyPref = false;
+      this.questFilter = { status: 'all', cat: 'all', q: '' };
+      if (this.game) this.game.applySettings();
+      this.toast('🗑️ 진행사항을 초기화했어요. 스타터 5종으로 새 출발!', 'good');
+      this.showTitle();
+    };
   }
 
   /* ---------------- HUD ---------------- */
