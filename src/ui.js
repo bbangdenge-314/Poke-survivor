@@ -4,14 +4,14 @@
 import {
   CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES,
   TYPE_COLORS, BRANCH_NAMES, FIELD_ITEMS, SUPER_AWAKENS, QUESTS, QUEST_BY_KEY, VIEW_MODES
-} from './data.js?v=22';
-import { spriteURL } from './sprites.js?v=22';
-import { setCryEnabled } from './sprites.js?v=22';
-import { setSfxEnabled } from './audio.js?v=22';
+} from './data.js?v=23';
+import { spriteURL } from './sprites.js?v=23';
+import { setCryEnabled } from './sprites.js?v=23';
+import { setSfxEnabled } from './audio.js?v=23';
 import {
   getSave, upgradeCost, buyUpgrade, isUnlocked, isStageUnlocked, isPassiveUnlocked,
   isFieldUnlocked, questState, claimQuest, questRewardText, setSetting, toggleSetting, persist
-} from './save.js?v=22';
+} from './save.js?v=23';
 
 const $ = id => document.getElementById(id);
 const AFFINITY_LABEL = id => WEAPONS[id] ? `${WEAPONS[id].icon}${WEAPONS[id].name}` : id;
@@ -150,8 +150,7 @@ export class UI {
       const unlocked = isUnlocked(c);
       const owned = !!s.shiny[c.key];
       const on = this.selectedChar === c.key;
-      const unlockedNow = c.unlockQuest && questState(questOf(c.unlockQuest)).claimed;
-      return `<button class="char-card ${on ? 'on' : ''} ${unlocked ? '' : 'locked'} ${unlockedNow ? 'newly' : ''}" data-char="${c.key}">
+      return `<button class="char-card ${on ? 'on' : ''} ${unlocked ? '' : 'locked'}" data-char="${c.key}">
         ${owned ? '<span class="shiny-dot">✦</span>' : ''}
         <img loading="lazy" src="${spriteURL(c.id, false)}" alt="${c.chain[0].name}">
         <div class="cc-name">${c.chain[0].name}</div>

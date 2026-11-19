@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES, BRANCH_WEAPON, FIELD_ITEMS, FIELD_ITEM_KEYS, PROP_TYPES, SUPER_AWAKENS, VIEW_MODES } from './data.js?v=22';
-import { getSprite, getWhiteSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=22';
-import { SFX } from './audio.js?v=22';
-import { metaMods, markCaught, markSeen, getSave, isFieldUnlocked, isPassiveUnlocked } from './save.js?v=22';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES, BRANCH_WEAPON, FIELD_ITEMS, FIELD_ITEM_KEYS, PROP_TYPES, SUPER_AWAKENS, VIEW_MODES } from './data.js?v=23';
+import { getSprite, getWhiteSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=23';
+import { SFX } from './audio.js?v=23';
+import { metaMods, markCaught, markSeen, getSave, isFieldUnlocked, isPassiveUnlocked } from './save.js?v=23';
 
 const TAU = Math.PI * 2;
 const WORLD = 4600;
@@ -349,6 +349,7 @@ export class Game {
   }
 
   addPassive(id) {
+    if (!PASSIVES[id] || !isPassiveUnlocked(id)) return;
     const cur = this.player.passives[id] || 0;
     if (cur === 0 && Object.keys(this.player.passives).length >= 6) return;
     this.player.passives[id] = Math.min(PASSIVES[id].max, cur + 1);
@@ -1824,7 +1825,7 @@ export class Game {
       });
       if (needPair) {
         const pairId = WEAPONS[needPair.id].pair;
-        if (pairId && !out.some(c => c.type === 'passive' && c.id === pairId)) {
+        if (pairId && isPassiveUnlocked(pairId) && !out.some(c => c.type === 'passive' && c.id === pairId)) {
           const pc = this.passiveCard(pairId);
           if (pc) out.push(pc);
         }

@@ -369,6 +369,8 @@ img { -webkit-user-drag: none; user-select: none; }
 .card { width: min(240px, 44vw); text-align: left; border: 0; border-radius: 20px; background: #fff; padding: 13px 13px 11px; box-shadow: 0 14px 30px rgba(20,40,80,.24); display: flex; flex-direction: column; gap: 7px; transition: transform .12s, box-shadow .12s; border-top: 5px solid var(--cc); }
 .card:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 20px 40px rgba(20,40,80,.3); }
 .card-awake { background: linear-gradient(160deg, #fffdf2, #fff4cf); border-top-color: #fbbf24; }
+.card-awake .c-name { color: #8a5a00; }
+.card-super .c-name { color: #6b21a8; }
 .card-super { background: linear-gradient(160deg, #fdf6ff, #efe2ff); border-top-color: #a855f7; box-shadow: 0 0 0 2px #d8b4fe inset, 0 14px 30px rgba(80,40,140,.3); }
 .c-top { display: flex; gap: 9px; align-items: center; }
 .c-icon { width: 42px; height: 42px; border-radius: 13px; background: color-mix(in srgb, var(--cc) 18%, #fff); display: grid; place-items: center; font-size: 22px; flex: 0 0 auto; }
