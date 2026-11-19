@@ -1,12 +1,12 @@
 /* ============================================================
    POKE SURVIVOR — 부트스트랩 / 입력 / 루프
    ============================================================ */
-import { Game } from './game.js?v=20';
-import { UI } from './ui.js?v=20';
-import { DEX, CHARACTERS, STAGES } from './data.js?v=20';
-import { preload, playCry, setCryEnabled } from './sprites.js?v=20';
-import { initAudio, setSfxEnabled, SFX } from './audio.js?v=20';
-import { getSave, persist, recordRun, toggleSetting } from './save.js?v=20';
+import { Game } from './game.js?v=21';
+import { UI } from './ui.js?v=21';
+import { DEX, CHARACTERS, STAGES, VIEW_MODES } from './data.js?v=21';
+import { preload, playCry, setCryEnabled } from './sprites.js?v=21';
+import { initAudio, setSfxEnabled, SFX } from './audio.js?v=21';
+import { getSave, persist, recordRun, toggleSetting, setSetting } from './save.js?v=21';
 
 /* ---------- 오류 수집 (검증용) ---------- */
 window.__errors = [];
@@ -28,6 +28,7 @@ window.__save = getSave;
 const save = getSave();
 setSfxEnabled(save.settings.sfx !== false);
 setCryEnabled(save.settings.cries !== false);
+game.applySettings();
 
 /* ---------- 게임 훅 ---------- */
 game.hooks = {
@@ -45,12 +46,13 @@ game.hooks = {
       win: result.win, stageKey: result.stageKey, time: result.time,
       kills: result.kills, coins: result.coins, dust: result.dust,
       charKey: result.charKey, shiny: result.shiny,
-      finalLevel: result.level, seenIds: result.seenIds
+      level: result.level, seenIds: result.seenIds,
+      bosses: result.bosses, awakens: result.awakens, supers: result.supers,
+      megas: result.megas, chests: result.chests, shinies: result.shinies
     });
     setTimeout(() => ui.showResult(g, result), result.win ? 900 : 700);
   },
   autoResolveUI: (g) => {
-    // 테스트용: 정지 상태를 강제로 해제
     const els = ['levelupOverlay', 'evoOverlay', 'branchOverlay', 'pauseOverlay'];
     els.forEach(id => document.getElementById(id).classList.add('hidden'));
     if (g.hooks.onLevelUpClose) g.hooks.onLevelUpClose(g);
@@ -152,7 +154,6 @@ function togglePause() {
   }
 }
 document.getElementById('pauseBtn').addEventListener('click', togglePause);
-/* 일시정지 탭 (일시정지 / 미니맵 / 조합표) */
 ['pause', 'map', 'combo'].forEach(name => {
   const btn = document.getElementById('ptab-' + name);
   if (btn) btn.addEventListener('click', () => ui.pauseTab(name));
@@ -178,6 +179,21 @@ document.getElementById('cryBtn').addEventListener('click', () => {
   const v = toggleSetting('cries');
   setCryEnabled(v);
   document.getElementById('cryBtn').textContent = '울음소리: ' + (v ? '켜짐' : '꺼짐');
+});
+const shakeBtn = document.getElementById('shakeBtn');
+if (shakeBtn) shakeBtn.addEventListener('click', () => {
+  const v = toggleSetting('shake');
+  game.applySettings();
+  shakeBtn.textContent = '화면 흔들림: ' + (v ? 'ON' : 'OFF');
+});
+const viewBtn = document.getElementById('viewBtn');
+if (viewBtn) viewBtn.addEventListener('click', () => {
+  const order = Object.keys(VIEW_MODES);
+  const cur = getSave().settings.view || 'wide';
+  const next = order[(order.indexOf(cur) + 1) % order.length];
+  setSetting('view', next);
+  game.resize();
+  viewBtn.textContent = '시야: ' + VIEW_MODES[next].name;
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && game.state === 'run' && !game.paused) togglePause();
@@ -208,9 +224,8 @@ async function boot() {
   await preload(ids, false, (n, total) => {
     if (pct) pct.textContent = Math.round(n / total * 100) + '%';
   });
-  // 플레이어블 이로치도 미리
   await preload(CHARACTERS.map(c => c.id), true);
-  await preload(ids, true);
+  await preload(CHARACTERS.filter(c => c.special).map(c => c.special.id), false);
   document.getElementById('loading').classList.add('hidden');
   ui.showTitle();
   requestAnimationFrame(frame);
@@ -219,7 +234,12 @@ async function boot() {
 addEventListener('resize', () => game.resize());
 if (window.visualViewport) window.visualViewport.addEventListener('resize', () => game.resize());
 
-/* ---------- 자체 테스트 ---------- */
+/* ---------- 자체 테스트 (개발/검증용) ---------- */
+window.__start = (opts = {}) => {
+  startRun({ charKey: opts.charKey || 'pikachu', stageKey: opts.stageKey || 'meadow', shiny: !!opts.shiny });
+  return game.state;
+};
+
 window.__selftest = async function (opts = {}) {
   const errors = [];
   const results = [];
@@ -234,19 +254,19 @@ window.__selftest = async function (opts = {}) {
     results.push({
       key, time: Math.round(sim.time), state: sim.state, level: sim.level,
       kills: sim.kills, coins: Math.round(game.runCoins), weapons: game.player.weaponList.length,
-      evo: game.evoStage, errs: sim.errors.length ? sim.errors : undefined
+      evo: game.evoStage, special: game.special ? game.special.name : null,
+      supers: game.superCount, errs: sim.errors.length ? sim.errors : undefined
     });
-    // UI 화면은 건드리지 않는다
   }
   game.state = 'idle';
   game.hideResult = true;
   return { results, errors };
 };
 
-window.__selftestAll = async function () {
+window.__selftestAll = async function (stageKey) {
   const out = [];
   for (const c of CHARACTERS) {
-    game.startRun({ charKey: c.key, stageKey: STAGES[0].key, auto: true });
+    game.startRun({ charKey: c.key, stageKey: stageKey || STAGES[0].key, auto: true });
     const sim = game.simulate(240);
     out.push({ key: c.key, t: Math.round(sim.time), lv: sim.level, kills: sim.kills, st: sim.state, err: sim.errors[0] || null });
   }
@@ -257,6 +277,51 @@ window.__selftestAll = async function () {
 window.__botplay = function (seconds, stageKey = 'meadow', charKey = 'pikachu') {
   game.startRun({ charKey, stageKey, auto: true });
   return game.simulate(seconds);
+};
+
+/* 테스트용: 퀘스트 목표를 즉시 채운다 */
+window.__forceQuests = function () {
+  const c = game.char;
+  const q = game.evoStage < c.evoQuests.length ? c.evoQuests[game.evoStage] : (c.special ? c.special.quest : null);
+  if (!q) return 'none';
+  const st = game.runStats;
+  const g = q.goals || q;
+  if (g.kills) st.kills = g.kills;
+  if (g.elites) st.elites = g.elites;
+  if (g.bosses) st.bosses = g.bosses;
+  if (g.chests) st.chests = g.chests;
+  if (g.skillHits) st.skillHits = g.skillHits;
+  if (g.noHit) st.noHitBest = g.noHit;
+  if (g.time) game.time = Math.max(game.time, g.time);
+  game.checkEvolution();
+  return game.questInfo().title;
+};
+
+/* 테스트용: 메가/거다이 즉시 발동 */
+window.__testSpecial = function (charKey) {
+  const c = CHARACTERS.find(x => x.key === (charKey || 'charmander'));
+  game.startRun({ charKey: c.key, stageKey: 'meadow', auto: true });
+  game.evoStage = c.evoQuests.length;
+  if (c.chain.length > 1) game.evolveTo(c.chain[c.chain.length - 1].id);
+  game.paused = false;
+  if (c.special) game.doSpecial(c.special);
+  return { char: c.key, name: game.currentStageName(), id: game.currentStage(), special: !!game.special };
+};
+
+/* 테스트용: 초각성 즉시 구성 */
+window.__testSuper = function (key) {
+  game.startRun({ charKey: 'pikachu', stageKey: 'meadow', auto: true });
+  const rec = (window.__superRecipes || []);
+  void rec;
+  const chars = ['thunder', 'flame'];
+  for (const id of chars) {
+    if (!game.player.weaponList.some(w => w.id === id)) game.addWeapon(id, 6);
+    const w = game.player.weaponList.find(x => x.id === id);
+    w.lv = 6; w.awake = true;
+  }
+  const s = key || 'storm';
+  game.applySuper({ key: s, name: '폭풍의 심판', icon: '🌩️', color: '#fde047', from: chars, desc: '' });
+  return { supers: game.superCount, weapons: game.player.weaponList.map(w => w.id) };
 };
 
 boot();

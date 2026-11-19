@@ -1,21 +1,29 @@
-/* 영구 저장(localStorage) · 로그라이크 메타 진행 */
-import { CHARACTERS, UPGRADES, SAVE_KEY } from './data.js?v=20';
+/* 영구 저장(localStorage) · 메타 진행 · 퀘스트 해금 */
+import { CHARACTERS, UPGRADES, QUESTS, QUEST_BY_KEY, PASSIVES, FIELD_ITEMS, LOCKED_PASSIVES, LOCKED_FIELDS, SAVE_KEY } from './data.js?v=21';
+
+const baseSettings = () => ({ sfx: true, cries: true, shake: true, view: 'wide' });
+
+const baseStats = () => ({
+  runs: 0, wins: 0, kills: 0, bossKills: 0, awakens: 0, supers: 0, megas: 0,
+  chests: 0, shinies: 0, maxLevel: 1, playTime: 0, clears: {}, bestKills: 0
+});
 
 const defaultSave = () => ({
-  v: 3,
+  v: 4,
   coins: 0,
   dust: 0,
   upgrades: Object.fromEntries(UPGRADES.map(u => [u.key, 0])),
-  unlocked: CHARACTERS.filter(c => !c.cost).map(c => c.key),
-  shiny: {},          // charKey -> true (이로치 획득)
+  unlocked: CHARACTERS.filter(c => !c.unlockQuest).map(c => c.key),
+  stages: ['meadow'],
+  fields: Object.keys(FIELD_ITEMS).filter(k => !LOCKED_FIELDS[k]),
+  passives: Object.keys(PASSIVES).filter(k => !LOCKED_PASSIVES[k]),
+  questsClaimed: {},
+  shiny: {},
   dexSeen: {},
   dexCaught: {},
-  cleared: [],        // stage keys
-  runs: 0,
-  wins: 0,
-  kills: 0,
-  bestStage: null,
-  settings: { sfx: true, cries: true },
+  stats: baseStats(),
+  cleared: [],
+  settings: baseSettings(),
   createdAt: Date.now()
 });
 
@@ -29,8 +37,15 @@ export function getSave() {
       const p = JSON.parse(raw);
       data = Object.assign(defaultSave(), p);
       data.upgrades = Object.assign(Object.fromEntries(UPGRADES.map(u => [u.key, 0])), p.upgrades || {});
-      data.settings = Object.assign({ sfx: true, cries: true }, p.settings || {});
+      data.settings = Object.assign(baseSettings(), p.settings || {});
+      data.stats = Object.assign(baseStats(), p.stats || {});
+      // 구버전(코인 해금) 세이브 호환
       if (!Array.isArray(data.unlocked) || !data.unlocked.length) data.unlocked = defaultSave().unlocked;
+      if (!Array.isArray(data.stages) || !data.stages.length) data.stages = ['meadow'];
+      if (!Array.isArray(data.fields) || !data.fields.length) data.fields = Object.keys(FIELD_ITEMS).filter(k => !LOCKED_FIELDS[k]);
+      if (!Array.isArray(data.passives) || !data.passives.length) data.passives = Object.keys(PASSIVES).filter(k => !LOCKED_PASSIVES[k]);
+      if (!data.questsClaimed || typeof data.questsClaimed !== 'object') data.questsClaimed = {};
+      if (!Array.isArray(data.cleared)) data.cleared = [];
     } else {
       data = defaultSave();
     }
@@ -63,19 +78,23 @@ export function buyUpgrade(u) {
 }
 
 export function isUnlocked(char) {
-  return !char.cost || getSave().unlocked.includes(char.key);
+  return !char.unlockQuest || getSave().unlocked.includes(char.key);
 }
-
-export function unlockCost(char) { return char.cost || 0; }
-
 export function unlockChar(char) {
   const s = getSave();
-  if (isUnlocked(char)) return { ok: false, reason: 'owned' };
-  if (s.coins < char.cost) return { ok: false, reason: 'poor', cost: char.cost };
-  s.coins -= char.cost;
+  if (s.unlocked.includes(char.key)) return false;
   s.unlocked.push(char.key);
   persist();
-  return { ok: true, cost: char.cost };
+  return true;
+}
+export function isStageUnlocked(stage) {
+  return !stage.unlock || getSave().stages.includes(stage.key);
+}
+export function isPassiveUnlocked(id) {
+  return getSave().passives.includes(id);
+}
+export function isFieldUnlocked(id) {
+  return getSave().fields.includes(id);
 }
 
 /* 메타 업그레이드 → 런 시작 보정값 */
@@ -117,20 +136,99 @@ function queuePersist() {
   persistTimer = setTimeout(() => { persistTimer = null; persist(); }, 400);
 }
 
-export function recordRun({ win, stageKey, time, kills, coins, dust, charKey, shiny, finalLevel, seenIds }) {
+export function recordRun(run) {
   const s = getSave();
-  s.runs += 1;
-  s.kills += kills;
-  s.coins += coins;
-  s.dust += dust;
-  if (win) {
-    s.wins += 1;
-    if (!s.cleared.includes(stageKey)) s.cleared.push(stageKey);
+  const st = s.stats;
+  s.coins += Math.round(run.coins || 0);
+  s.dust += Math.round(run.dust || 0);
+  st.runs += 1;
+  st.kills += run.kills || 0;
+  st.bossKills += run.bosses || 0;
+  st.awakens += run.awakens || 0;
+  st.supers += run.supers || 0;
+  st.megas += run.megas || 0;
+  st.chests += run.chests || 0;
+  st.shinies += run.shinies || 0;
+  st.maxLevel = Math.max(st.maxLevel, run.level || 1);
+  st.bestKills = Math.max(st.bestKills, run.kills || 0);
+  st.playTime += Math.round(run.time || 0);
+  if (run.win) {
+    s.wins = (s.wins || 0) + 1;
+    st.wins = s.wins;
+    if (run.stageKey && !s.cleared.includes(run.stageKey)) s.cleared.push(run.stageKey);
+    if (run.stageKey) st.clears[run.stageKey] = (st.clears[run.stageKey] || 0) + 1;
   }
-  if (charKey && shiny) s.shiny[charKey] = true;
-  (seenIds || []).forEach(id => { s.dexSeen[id] = 1; });
+  if (run.charKey && run.shiny) s.shiny[run.charKey] = true;
+  (run.seenIds || []).forEach(id => { s.dexSeen[id] = 1; });
   persist();
   return s;
+}
+
+/* ---------- 퀘스트 ---------- */
+export function questValue(q) {
+  const s = getSave();
+  const g = q.goal || {};
+  if (g.stat === 'clears') return s.stats.clears[g.key] || 0;
+  if (g.stat === 'wins') return s.stats.wins || s.wins || 0;
+  if (g.stat === 'stageCount') return s.stages.length;
+  return s.stats[g.stat] || 0;
+}
+
+export function questState(q) {
+  const s = getSave();
+  const need = (q.goal && q.goal.n) || 1;
+  const cur = Math.min(need, questValue(q));
+  const done = cur >= need;
+  const claimed = !!s.questsClaimed[q.key];
+  return { cur, need, done, claimed, pct: Math.min(100, Math.round(cur / need * 100)) };
+}
+
+export function questRewardText(q) {
+  const r = q.reward || {};
+  const bits = [];
+  if (r.coins) bits.push(`🪙 ${r.coins}`);
+  if (r.char) {
+    const c = CHARACTERS.find(x => x.key === r.char);
+    bits.push(`해금 ${c ? c.chain[0].name : r.char}`);
+  }
+  if (r.stage) bits.push(`스테이지 ${r.stage === 'cave' ? '은빛 동굴' : r.stage === 'sky' ? '하늘 제단' : r.stage === 'forest' ? '보라타운 유령숲' : r.stage === 'aqua' ? '심해 아쿠아 신전' : r.stage === 'volcano' ? '태초의 마그마 화산' : '뒤틀린 시공의 틈'}`);
+  if (r.passive) bits.push(`패시브 ${PASSIVES[r.passive] ? PASSIVES[r.passive].name : r.passive}`);
+  if (r.field) bits.push(`아이템 ${FIELD_ITEMS[r.field] ? FIELD_ITEMS[r.field].name : r.field}`);
+  return bits.join(' · ');
+}
+
+export function claimQuest(q) {
+  const s = getSave();
+  const st = questState(q);
+  if (!st.done) return { ok: false, reason: 'notyet' };
+  if (st.claimed) return { ok: false, reason: 'done' };
+  const r = q.reward || {};
+  s.questsClaimed[q.key] = 1;
+  if (r.coins) s.coins += r.coins;
+  if (r.char && !s.unlocked.includes(r.char)) s.unlocked.push(r.char);
+  if (r.stage && !s.stages.includes(r.stage)) s.stages.push(r.stage);
+  if (r.passive && !s.passives.includes(r.passive)) s.passives.push(r.passive);
+  if (r.field && !s.fields.includes(r.field)) s.fields.push(r.field);
+  persist();
+  return { ok: true, reward: r };
+}
+
+export function questUnlockedBy(res) {
+  const out = [];
+  const s = getSave();
+  for (const q of QUESTS) {
+    const r = q.reward || {};
+    if (r[res.type] === res.key && s.questsClaimed[q.key]) out.push(q);
+  }
+  return out;
+}
+
+export function firstUnclaimedQuest() {
+  for (const q of QUESTS) {
+    const st = questState(q);
+    if (st.done && !st.claimed) return q;
+  }
+  return null;
 }
 
 export function toggleSetting(k) {
@@ -139,3 +237,11 @@ export function toggleSetting(k) {
   persist();
   return s.settings[k];
 }
+export function setSetting(k, v) {
+  const s = getSave();
+  s.settings[k] = v;
+  persist();
+  return v;
+}
+
+export { QUESTS, QUEST_BY_KEY };
