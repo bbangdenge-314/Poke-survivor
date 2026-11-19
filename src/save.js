@@ -1,5 +1,5 @@
 /* 영구 저장(localStorage) · 메타 진행 · 퀘스트 해금 */
-import { CHARACTERS, UPGRADES, QUESTS, QUEST_BY_KEY, PASSIVES, FIELD_ITEMS, LOCKED_PASSIVES, LOCKED_FIELDS, SAVE_KEY } from './data.js?v=24';
+import { CHARACTERS, UPGRADES, QUESTS, QUEST_BY_KEY, PASSIVES, FIELD_ITEMS, LOCKED_PASSIVES, LOCKED_FIELDS, SAVE_KEY } from './data.js?v=25';
 
 const baseSettings = () => ({ sfx: true, cries: true, shake: true, view: 'wide' });
 
@@ -40,7 +40,10 @@ export function getSave() {
       data.settings = Object.assign(baseSettings(), p.settings || {});
       data.stats = Object.assign(baseStats(), p.stats || {});
       // 구버전(코인 해금) 세이브 호환
-      if (!Array.isArray(data.unlocked) || !data.unlocked.length) data.unlocked = defaultSave().unlocked;
+      // 새 로스터가 추가돼도 기존 세이브가 그대로 이어지도록, 기본 해금 목록은 항상 합집합으로 병합한다.
+      const baseUnlocked = defaultSave().unlocked;
+      if (!Array.isArray(data.unlocked) || !data.unlocked.length) data.unlocked = baseUnlocked;
+      else data.unlocked = [...new Set([...data.unlocked, ...baseUnlocked])];
       if (!Array.isArray(data.stages) || !data.stages.length) data.stages = ['meadow'];
       if (!Array.isArray(data.fields) || !data.fields.length) data.fields = Object.keys(FIELD_ITEMS).filter(k => !LOCKED_FIELDS[k]);
       if (!Array.isArray(data.passives) || !data.passives.length) data.passives = Object.keys(PASSIVES).filter(k => !LOCKED_PASSIVES[k]);

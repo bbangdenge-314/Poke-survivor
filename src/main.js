@@ -1,12 +1,12 @@
 /* ============================================================
    POKE SURVIVOR — 부트스트랩 / 입력 / 루프
    ============================================================ */
-import { Game } from './game.js?v=24';
-import { UI } from './ui.js?v=24';
-import { DEX, CHARACTERS, STAGES, VIEW_MODES } from './data.js?v=24';
-import { preload, playCry, setCryEnabled } from './sprites.js?v=24';
-import { initAudio, setSfxEnabled, SFX } from './audio.js?v=24';
-import { getSave, persist, recordRun, toggleSetting, setSetting } from './save.js?v=24';
+import { Game } from './game.js?v=25';
+import { UI } from './ui.js?v=25';
+import { DEX, CHARACTERS, STAGES, VIEW_MODES, SUPER_AWAKENS } from './data.js?v=25';
+import { preload, playCry, setCryEnabled } from './sprites.js?v=25';
+import { initAudio, setSfxEnabled, SFX } from './audio.js?v=25';
+import { getSave, persist, recordRun, toggleSetting, setSetting } from './save.js?v=25';
 
 /* ---------- 오류 수집 (검증용) ---------- */
 window.__errors = [];
@@ -67,6 +67,7 @@ function startRun(opts) {
   ui.hideAllOverlays();
   ui.hudShow(true);
   ui.lastWeaponSig = '';
+  ui.lastPassiveSig = '';
   game.startRun(opts);
   ui.hudUpdate(game);
 }
@@ -308,20 +309,17 @@ window.__testSpecial = function (charKey) {
   return { char: c.key, name: game.currentStageName(), id: game.currentStage(), special: !!game.special };
 };
 
-/* 테스트용: 초각성 즉시 구성 */
+/* 테스트용: 초각성 즉시 구성 (키를 주면 해당 초각성) */
 window.__testSuper = function (key) {
+  const s = SUPER_AWAKENS.find(x => x.key === (key || 'storm')) || SUPER_AWAKENS[0];
   game.startRun({ charKey: 'pikachu', stageKey: 'meadow', auto: true });
-  const rec = (window.__superRecipes || []);
-  void rec;
-  const chars = ['thunder', 'flame'];
-  for (const id of chars) {
+  for (const id of s.from) {
     if (!game.player.weaponList.some(w => w.id === id)) game.addWeapon(id, 6);
     const w = game.player.weaponList.find(x => x.id === id);
-    w.lv = 6; w.awake = true;
+    if (w) { w.lv = 6; w.awake = true; }
   }
-  const s = key || 'storm';
-  game.applySuper({ key: s, name: '폭풍의 심판', icon: '🌩️', color: '#fde047', from: chars, desc: '' });
-  return { supers: game.superCount, weapons: game.player.weaponList.map(w => w.id) };
+  game.applySuper(s);
+  return { key: s.key, name: s.name, supers: game.superCount, weapons: game.player.weaponList.map(w => w.id) };
 };
 
 boot();

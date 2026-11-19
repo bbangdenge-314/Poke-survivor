@@ -1,10 +1,10 @@
 /* ============================================================
    POKE SURVIVOR — 게임 엔진
    ============================================================ */
-import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES, BRANCH_WEAPON, FIELD_ITEMS, FIELD_ITEM_KEYS, PROP_TYPES, SUPER_AWAKENS, VIEW_MODES } from './data.js?v=24';
-import { getSprite, getWhiteSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=24';
-import { SFX } from './audio.js?v=24';
-import { metaMods, markCaught, markSeen, getSave, isFieldUnlocked, isPassiveUnlocked } from './save.js?v=24';
+import { WEAPONS, PASSIVES, CHARACTERS, CHAR_BY_KEY, ENEMIES, STAGES, DEX, TYPE_COLORS, BRANCH_NAMES, BRANCH_WEAPON, FIELD_ITEMS, FIELD_ITEM_KEYS, PROP_TYPES, SUPER_AWAKENS, SUPER_BY_KEY, VIEW_MODES } from './data.js?v=25';
+import { getSprite, getWhiteSprite, spriteBounds, fallbackDraw, playCry, loadSprite } from './sprites.js?v=25';
+import { SFX } from './audio.js?v=25';
+import { metaMods, markCaught, markSeen, getSave, isFieldUnlocked, isPassiveUnlocked } from './save.js?v=25';
 
 const TAU = Math.PI * 2;
 const WORLD = 4600;
@@ -317,10 +317,12 @@ export class Game {
     dmg *= 1 + 0.12 * lv('power');
     if (s === 'pressure') dmg *= 1.2;
     if (s === 'airlock') dmg *= 1.15;
+    if (s === 'guts') dmg *= 1.12;
     p.dmgMul = dmg;
 
     let maxHp = this.base.hp + 22 * lv('vitality');
     if (s === 'thickfat') maxHp *= 1.25;
+    if (s === 'sturdy') maxHp *= 1.15;
     const oldMax = p.maxHp;
     p.maxHp = Math.round(maxHp);
     if (!initial && p.maxHp > oldMax) p.hp += p.maxHp - oldMax;
@@ -329,16 +331,17 @@ export class Game {
     let speed = this.base.speed * (1 + 0.08 * lv('speed')) * this.meta.speed;
     if (s === 'levitate') speed *= 1.12;
     if (s === 'airlock') speed *= 1.08;
+    if (s === 'swiftswim') speed *= 1.10;
     p.speed = speed;
 
-    p.cdMul = this.meta.haste / (1 + 0.1 * lv('cooldown'));
+    p.cdMul = this.meta.haste / (1 + 0.1 * lv('cooldown')) / (s === 'swiftswim' ? 1.08 : 1);
     p.magnet = 110 * (1 + 0.25 * lv('magnet')) * this.meta.magnet;
-    p.critChance = 0.05 + 0.09 * lv('crit') + (s === 'innerfocus' ? 0.15 : 0);
-    p.critMul = 1.6 + 0.18 * lv('crit');
-    p.armor = Math.min(0.75, this.meta.armor + 0.07 * lv('armor') + (s === 'shell' ? 0.18 : 0) + (s === 'thickfat' ? 0.08 : 0) + (s === 'clearbody' ? 0.12 : 0));
+    p.critChance = 0.05 + 0.09 * lv('crit') + (s === 'innerfocus' ? 0.15 : 0) + (s === 'sniper' ? 0.12 : 0);
+    p.critMul = 1.6 + 0.18 * lv('crit') + (s === 'sniper' ? 0.25 : 0);
+    p.armor = Math.min(0.75, this.meta.armor + 0.07 * lv('armor') + (s === 'shell' ? 0.18 : 0) + (s === 'thickfat' ? 0.08 : 0) + (s === 'clearbody' ? 0.12 : 0) + (s === 'guts' ? 0.05 : 0) + (s === 'sturdy' ? 0.08 : 0));
     p.xpMul = this.meta.xp * (1 + 0.14 * lv('xp')) * (s === 'adapt' ? 1.2 : 1) * (p.legendBoost ? 1.3 : 1);
-    p.coinMul = this.meta.coin * (1 + 0.22 * lv('coin')) * (p.legendBoost ? 1.5 : 1);
-    p.regen = 0.9 * lv('regen') + (s === 'photosynthesis' ? (this.evoStage > 0 ? 1.9 : 1.6) : 0);
+    p.coinMul = this.meta.coin * (1 + 0.22 * lv('coin')) * (p.legendBoost ? 1.5 : 1) * (s === 'harvest' ? 1.25 : 1);
+    p.regen = 0.9 * lv('regen') + (s === 'photosynthesis' ? (this.evoStage > 0 ? 1.9 : 1.6) : 0) + (s === 'harvest' ? 0.5 : 0);
   }
 
   addWeapon(id, lv) {
@@ -934,69 +937,427 @@ export class Game {
   }
 
   /* ================= 초각성 발동 ================= */
+  /* 초각성 25종은 각자 고유한 fx.kind 로 전투 로직을 가진다. */
   fireSuper(w, st) {
     const p = this.player;
     const key = w.id.slice(6);
+    const s = SUPER_BY_KEY[key] || { color: WEAPONS[w.id].color, fx: { kind: key } };
     this.attackAnim();
     this.cam.shake = Math.min(24, (this.cam.shake || 0) + 14);
     this.flash = Math.max(this.flash, 0.3);
-    this.flashColor = WEAPONS[w.id].color;
+    this.flashColor = s.color || WEAPONS[w.id].color;
     SFX.explode();
-    if (key === 'storm') {
-      const targets = this.nearestEnemies(12, 1e9);
-      for (const t of targets) {
-        this.bolt(p.x, p.y, t.x, t.y);
-        this.damage(t, st.dmg, { color: '#fde047', stun: 0.25 });
-        this.rings.push({ x: t.x, y: t.y, r: 4, r1: 90, life: 0.5, max: 0.5, color: '#fde047', kind: 'meteor', hit: new Set(), dmg: st.dmg * 0.5, delay: rand(0, 0.2), target: true });
-      }
-      for (let i = 0; i < 6; i++) {
-        const e = pick(this.enemies);
-        if (!e) break;
-        this.rings.push({ x: e.x + rand(-40, 40), y: e.y + rand(-40, 40), r: 4, r1: 70, life: 0.7, max: 0.7, color: '#fb923c', kind: 'meteor', hit: new Set(), dmg: st.dmg * 0.4, delay: 0.25 + i * 0.05, target: true });
-      }
-    } else if (key === 'tsunami') {
-      const R = 780;
-      this.rings.push({ x: p.x, y: p.y, r: 20, r1: R, life: 0.9, max: 0.9, color: '#7dd3fc', kind: 'psychic', hit: new Set(), dmg: st.dmg * 1.15, delay: 0, wide: 30 });
-      for (const e of this.enemies) {
-        if (e.dead) continue;
-        if (dist2(e.x, e.y, p.x, p.y) < R * R) {
-          this.damage(e, st.dmg * 0.5, { color: '#7dd3fc', knock: 160 });
-          e.freeze = Math.max(e.freeze, 1.2);
-        }
-      }
-      for (let i = 0; i < 50; i++) {
-        const a = rand(0, TAU);
-        this.particles.push({ x: p.x + Math.cos(a) * rand(40, 700), y: p.y + Math.sin(a) * rand(40, 700), vx: Math.cos(a) * 120, vy: Math.sin(a) * 120, life: 0.7, max: 0.7, color: i % 2 ? '#7dd3fc' : '#e0f2fe', r: rand(3, 8) });
-      }
-    } else if (key === 'gaia') {
-      for (let i = 0; i < 9; i++) {
-        const e = pick(this.enemies);
-        const x = e ? e.x + rand(-30, 30) : p.x + rand(-400, 400);
-        const y = e ? e.y + rand(-30, 30) : p.y + rand(-400, 400);
-        this.rings.push({ x, y, r: 4, r1: 110, life: 0.8, max: 0.8, color: '#86efac', kind: 'meteor', hit: new Set(), dmg: st.dmg * 0.55, delay: 0.2 + i * 0.03, target: true });
-      }
-      this.rings.push({ x: p.x, y: p.y, r: 20, r1: 420, life: 0.7, max: 0.7, color: '#86efac', kind: 'quake', hit: new Set(), dmg: st.dmg * 0.6, delay: 0 });
-    } else if (key === 'void') {
-      for (const e of this.enemies) {
-        if (e.dead) continue;
-        const dx = p.x - e.x, dy = p.y - e.y;
-        const d = Math.hypot(dx, dy) || 1;
-        if (d < 760 && !e.boss) { e.kx += dx / d * 420; e.ky += dy / d * 420; }
-      }
-      this.rings.push({ x: p.x, y: p.y, r: 40, r1: 240, life: 0.7, max: 0.7, color: '#c084fc', kind: 'psychic', hit: new Set(), dmg: st.dmg * 1.2, delay: 0.3, wide: 34 });
-      this.explode(p.x, p.y, 260, st.dmg * 0.8, '#c084fc', 2, null);
-    } else if (key === 'pulse') {
-      for (let i = 0; i < 8; i++) {
-        this.beams.push({ x: p.x, y: p.y, angle: (i / 8) * TAU, len: 720, width: 40, life: 0.4, max: 0.4, color: '#93c5fd', hit: new Set(), dmg: st.dmg * 0.55, awake: true });
-      }
-      this.rings.push({ x: p.x, y: p.y, r: 20, r1: 320, life: 0.6, max: 0.6, color: '#93c5fd', kind: 'psychic', hit: new Set(), dmg: st.dmg * 0.4, delay: 0 });
-    } else if (key === 'genesis') {
-      for (let i = 0; i < 4; i++) {
-        this.rings.push({ x: p.x, y: p.y, r: 20, r1: 620 - i * 70, life: 0.6, max: 0.6, color: '#fbbf24', kind: 'quake', hit: new Set(), dmg: st.dmg * (1 - i * 0.15), delay: i * 0.12, stun: 0.4, wide: 30 });
-      }
-      this.cam.shake = 26;
-    }
+    this.superFx(s, st);
     return true;
+  }
+
+  /* 원형 폭발 링 (광역 피해 + 옵션) */
+  superRing(x, y, r, dmg, color, opts = {}) {
+    this.rings.push({
+      x, y, r: 10, r1: r, life: opts.life || 0.6, max: opts.life || 0.6, color,
+      kind: opts.kind || 'quake', hit: new Set(), dmg, delay: opts.delay || 0, stun: opts.stun || 0, wide: opts.wide || 26
+    });
+  }
+
+  superFx(s, st) {
+    const p = this.player;
+    const fx = s.fx || { kind: s.key };
+    const C = s.color;
+    const D = st.dmg;
+    const RND = (a, b) => a + Math.random() * (b - a);
+    const burst = (x, y, n, color, spread = 320) => {
+      for (let i = 0; i < n; i++) {
+        const a = RND(0, TAU), sp = RND(60, spread);
+        this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: RND(0.5, 1.0), max: 1.0, color: i % 3 ? color : '#fff', r: RND(2, 7) });
+      }
+    };
+    const enemiesIn = (x, y, r) => this.enemies.filter(e => !e.dead && dist2(e.x, e.y, x, y) < r * r);
+
+    switch (fx.kind) {
+      /* ---------- 천둥 + 불꽃 : 번개 12갈래 + 불꽃 유성 ---------- */
+      case 'storm': {
+        const targets = this.nearestEnemies(fx.bolts || 12, 1e9);
+        for (const t of targets) {
+          this.bolt(p.x, p.y, t.x, t.y);
+          this.damage(t, D, { color: '#fde047', stun: 0.25 });
+          this.superRing(t.x, t.y, 90, D * 0.4, '#fde047', { kind: 'meteor', delay: 0.1 + Math.random() * 0.2 });
+        }
+        for (let i = 0; i < (fx.meteors || 6); i++) {
+          const e = pick(this.enemies);
+          const x = e ? e.x + RND(-40, 40) : p.x + RND(-320, 320);
+          const y = e ? e.y + RND(-40, 40) : p.y + RND(-320, 320);
+          this.rings.push({ x, y, r: 4, r1: 100, life: 0.75, max: 0.75, color: '#fb923c', kind: 'meteor', hit: new Set(), dmg: D * 0.5, delay: 0.25 + i * 0.05 });
+        }
+        burst(p.x, p.y, 30, '#fde047');
+        break;
+      }
+
+      /* ---------- 물 + 얼음 : 빙하 해일 ---------- */
+      case 'tsunami': {
+        const R = fx.radius || 780;
+        this.rings.push({ x: p.x, y: p.y, r: 20, r1: R, life: 0.9, max: 0.9, color: '#7dd3fc', kind: 'psychic', hit: new Set(), dmg: D * 1.1, delay: 0, wide: 30 });
+        for (const e of enemiesIn(p.x, p.y, R)) {
+          this.damage(e, D * 0.5, { color: '#7dd3fc', knock: 170 });
+          e.freeze = Math.max(e.freeze, fx.freeze || 1.2);
+        }
+        for (let i = 0; i < 3; i++) {
+          this.rings.push({ x: p.x, y: p.y, r: 40 + i * 120, r1: R * (1 - i * 0.22), life: 0.8, max: 0.8, color: '#e0f2fe', kind: 'ice', hit: new Set(), dmg: 0, delay: i * 0.12 });
+        }
+        burst(p.x, p.y, 50, '#7dd3fc', 500);
+        break;
+      }
+
+      /* ---------- 풀 + 별 : 세계수의 심판 ---------- */
+      case 'gaia': {
+        for (let i = 0; i < (fx.meteors || 9); i++) {
+          const e = pick(this.enemies);
+          const x = e ? e.x + RND(-30, 30) : p.x + RND(-360, 360);
+          const y = e ? e.y + RND(-30, 30) : p.y + RND(-360, 360);
+          this.rings.push({ x, y, r: 4, r1: 110, life: 0.8, max: 0.8, color: '#86efac', kind: 'meteor', hit: new Set(), dmg: D * 0.55, delay: 0.2 + i * 0.03 });
+        }
+        this.superRing(p.x, p.y, fx.radius || 420, D * 0.6, '#86efac');
+        burst(p.x, p.y, 34, '#86efac');
+        break;
+      }
+
+      /* ---------- 고스트 + 저주 : 영원한 어둠 ---------- */
+      case 'void': {
+        const R = fx.radius || 760;
+        for (const e of enemiesIn(p.x, p.y, R)) {
+          const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
+          if (!e.boss) { e.kx += dx / d * 520; e.ky += dy / d * 520; }
+        }
+        this.rings.push({ x: p.x, y: p.y, r: 40, r1: 250, life: 0.7, max: 0.7, color: '#c084fc', kind: 'psychic', hit: new Set(), dmg: D * 1.15, delay: 0.32, wide: 34 });
+        this.explode(p.x, p.y, 260, D * 0.8, '#c084fc', 2, null);
+        this.superRing(p.x, p.y, 320, D * 0.35, '#8b5cf6', { delay: 0.5, kind: 'psychic' });
+        burst(p.x, p.y, 40, '#c084fc', 220);
+        break;
+      }
+
+      /* ---------- 파동 + 참격 : 8방향 광선 참격 ---------- */
+      case 'pulse': {
+        const n = fx.beams || 8;
+        for (let i = 0; i < n; i++) {
+          this.beams.push({ x: p.x, y: p.y, angle: (i / n) * TAU + p.t * 0.4, len: 760, width: 44, life: 0.4, max: 0.4, color: '#93c5fd', hit: new Set(), dmg: D * 0.55, awake: true });
+        }
+        this.superRing(p.x, p.y, 330, D * 0.4, '#93c5fd', { kind: 'psychic' });
+        burst(p.x, p.y, 30, '#93c5fd', 620);
+        break;
+      }
+
+      /* ---------- 땅 + 몸통박치기 : 천지개벽 ---------- */
+      case 'genesis': {
+        const n = fx.waves || 4;
+        for (let i = 0; i < n; i++) {
+          this.rings.push({ x: p.x, y: p.y, r: 20, r1: 640 - i * 70, life: 0.6, max: 0.6, color: '#fbbf24', kind: 'quake', hit: new Set(), dmg: D * (1 - i * 0.15), delay: i * 0.12, stun: 0.4, wide: 30 });
+        }
+        this.cam.shake = 26;
+        burst(p.x, p.y, 46, '#d9b45a', 520);
+        break;
+      }
+
+      /* ---------- 회오리 + 천둥 : 적을 빨아들이는 뇌운 소용돌이 ---------- */
+      case 'tempest': {
+        const R = fx.radius || 520;
+        for (let wv = 0; wv < (fx.waves || 3); wv++) {
+          this.rings.push({ x: p.x, y: p.y, r: 30, r1: R * (1 - wv * 0.15), life: 0.8, max: 0.8, color: '#67e8f9', kind: 'echo', hit: new Set(), dmg: D * (0.6 - wv * 0.12), delay: 0.12 + wv * 0.14, stun: 0.2 });
+        }
+        for (const e of enemiesIn(p.x, p.y, R)) {
+          const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
+          if (!e.boss) { e.kx += dx / d * 380; e.ky += dy / d * 380; }
+          if (Math.random() < 0.5) this.bolt(p.x, p.y, e.x, e.y), this.damage(e, D * 0.22, { color: '#fde047', silent: true });
+        }
+        for (let i = 0; i < 30; i++) {
+          const a = (i / 30) * TAU * 2;
+          this.particles.push({ x: p.x + Math.cos(a) * (60 + i * 14), y: p.y + Math.sin(a) * (60 + i * 14), vx: -Math.cos(a) * 240, vy: -Math.sin(a) * 240, life: 0.9, max: 0.9, color: i % 2 ? '#67e8f9' : '#fde047', r: RND(2, 6) });
+        }
+        break;
+      }
+
+      /* ---------- 광선 + 거울 : 반사 십자 광선 ---------- */
+      case 'prism': {
+        const n = fx.beams || 6;
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * TAU;
+          this.beams.push({ x: p.x, y: p.y, angle: a, len: 820, width: 34, life: 0.45, max: 0.45, color: i % 2 ? '#e2e8f0' : '#93c5fd', hit: new Set(), dmg: D * 0.5, awake: true });
+          this.superRing(p.x + Math.cos(a) * 430, p.y + Math.sin(a) * 430, 90, D * 0.3, '#e2e8f0', { kind: 'meteor', delay: 0.18 });
+        }
+        this.superRing(p.x, p.y, 260, D * 0.45, '#e2e8f0', { kind: 'psychic' });
+        break;
+      }
+
+      /* ---------- 악몽 + 독 : 적 발밑 역병 웅덩이 ---------- */
+      case 'plague': {
+        const n = fx.pools || 10;
+        const spots = this.nearestEnemies(n, 900);
+        const put = (x, y) => this.hazards.push({ x, y, r: fx.radius || 100, life: 4.2, dmg: D * 0.5, color: '#a855f7', src: 'player', slow: 0.2 });
+        if (spots.length) spots.forEach(e => put(e.x, e.y));
+        for (let i = spots.length; i < n; i++) put(p.x + RND(-380, 380), p.y + RND(-380, 380));
+        for (const e of enemiesIn(p.x, p.y, 700)) {
+          if (Math.random() < 0.55) e.fear = Math.max(e.fear, 0.9);
+          this.damage(e, D * 0.28, { color: '#a855f7', silent: true });
+        }
+        burst(p.x, p.y, 40, '#a855f7', 400);
+        break;
+      }
+
+      /* ---------- 회오리 + 전광석화 : 연속 참격 ---------- */
+      case 'galeblade': {
+        const n = fx.slashes || 7;
+        const targets = this.nearestEnemies(n, 1e9);
+        for (let i = 0; i < n; i++) {
+          const t = targets[i];
+          const x = t ? t.x : p.x + RND(-300, 300);
+          const y = t ? t.y : p.y + RND(-300, 300);
+          const a = t ? Math.atan2(t.y - p.y, t.x - p.x) : RND(0, TAU);
+          this.slashes.push({ x, y, angle: a, range: 210, arc: 1.5, life: 0.34, max: 0.34, color: '#a5f3fc', hit: new Set(), dmg: D * 0.55, delay: i * 0.05 });
+          this.ghosts.push({ x, y, id: this.currentStage(), face: 1, h: 94 + this.evoStage * 9, shiny: p.shiny, life: 0.3, max: 0.3 });
+        }
+        this.superRing(p.x, p.y, 240, D * 0.35, '#a5f3fc', { kind: 'psychic' });
+        break;
+      }
+
+      /* ---------- 뼈다귀 + 땅 : 뼈 회오리 + 대지 균열 ---------- */
+      case 'bonemaw': {
+        const n = fx.bones || 10;
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * TAU;
+          this.projectiles.push({
+            x: p.x, y: p.y, vx: Math.cos(a) * 560, vy: Math.sin(a) * 560, r: 14,
+            dmg: D * 0.5, life: 1.35, pierce: 99, kind: 'bone', color: '#e7d3a1',
+            hit: new Set(), boomerang: true, spin: a
+          });
+        }
+        this.superRing(p.x, p.y, fx.radius || 460, D * 0.5, '#d9b45a', { kind: 'quake', stun: 0.3 });
+        this.cam.shake = 20;
+        break;
+      }
+
+      /* ---------- 에코 + 페어리 : 성가의 축복 (피해 + 회복) ---------- */
+      case 'hymn': {
+        for (let i = 0; i < (fx.waves || 3); i++) {
+          this.rings.push({ x: p.x, y: p.y, r: 20, r1: 520 - i * 70, life: 0.7, max: 0.7, color: '#fbcfe8', kind: 'echo', hit: new Set(), dmg: D * (0.6 - i * 0.12), delay: i * 0.13, stun: 0.35 });
+        }
+        const heal = p.maxHp * (fx.heal || 0.18);
+        p.hp = Math.min(p.maxHp, p.hp + heal);
+        this.floatText(p.x, p.y - 34, '+' + Math.round(heal), '#6ee7b7', 1.1);
+        for (const t of this.nearestEnemies(8, 800)) {
+          const a = Math.atan2(t.y - p.y, t.x - p.x);
+          this.projectiles.push({ x: p.x, y: p.y, vx: Math.cos(a) * 380, vy: Math.sin(a) * 380, r: 12, dmg: D * 0.4, life: 2, pierce: 1, kind: 'fairy', color: '#f9a8d4', hit: new Set(), homing: 6, blast: 60, trail: [] });
+        }
+        break;
+      }
+
+      /* ---------- 별 + 염동력 : 한 점으로 끌어모은 뒤 별 폭발 ---------- */
+      case 'nebula': {
+        const R = fx.radius || 260;
+        const near = this.nearestEnemies(1, 700)[0];
+        const cx = near ? near.x : p.x + (p.face > 0 ? 220 : -220);
+        const cy = near ? near.y : p.y;
+        for (const e of enemiesIn(cx, cy, 640)) {
+          const dx = cx - e.x, dy = cy - e.y, d = Math.hypot(dx, dy) || 1;
+          if (!e.boss) { e.kx += dx / d * 460; e.ky += dy / d * 460; }
+        }
+        this.rings.push({ x: cx, y: cy, r: 30, r1: R, life: 0.65, max: 0.65, color: '#c4b5fd', kind: 'psychic', hit: new Set(), dmg: D * 1.05, delay: 0.35, wide: 36 });
+        for (let i = 0; i < (fx.meteors || 6); i++) {
+          this.rings.push({ x: cx + RND(-70, 70), y: cy + RND(-70, 70), r: 4, r1: 120, life: 0.8, max: 0.8, color: '#a78bfa', kind: 'meteor', hit: new Set(), dmg: D * 0.45, delay: 0.4 + i * 0.05 });
+        }
+        burst(cx, cy, 36, '#c4b5fd', 260);
+        break;
+      }
+
+      /* ---------- 참격 + 돌진 : 용의 잔상 돌진 ---------- */
+      case 'dragonrush': {
+        const n = fx.rushes || 5;
+        const targets = this.nearestEnemies(n, 1e9);
+        for (let i = 0; i < n; i++) {
+          const t = targets[i];
+          const ang = t ? Math.atan2(t.y - p.y, t.x - p.x) : (i / n) * TAU;
+          const dist = t ? Math.min(520, Math.hypot(t.x - p.x, t.y - p.y) + 60) : 460;
+          const tx = p.x + Math.cos(ang) * dist, ty = p.y + Math.sin(ang) * dist;
+          for (let k = 1; k <= 4; k++) {
+            this.ghosts.push({ x: p.x + (tx - p.x) * (k / 4), y: p.y + (ty - p.y) * (k / 4), id: this.currentStage(), face: Math.cos(ang) >= 0 ? 1 : -1, h: 94 + this.evoStage * 9, shiny: p.shiny, life: 0.32 + k * 0.03, max: 0.5 });
+          }
+          for (const e of this.enemies) {
+            if (e.dead) continue;
+            const dx = e.x - p.x, dy = e.y - p.y;
+            const along = dx * Math.cos(ang) + dy * Math.sin(ang);
+            const perp = Math.abs(-dx * Math.sin(ang) + dy * Math.cos(ang));
+            if (along > -40 && along < dist + 40 && perp < 70) this.damage(e, D * 0.5, { color: '#818cf8', knock: 60 });
+          }
+          this.slashes.push({ x: tx, y: ty, angle: ang, range: 150, arc: 1.6, life: 0.3, max: 0.3, color: '#a5b4fc', hit: new Set(), dmg: D * 0.35, delay: i * 0.04 });
+        }
+        this.cam.shake = 18;
+        break;
+      }
+
+      /* ---------- 잎 + 독 : 맹독의 숲 ---------- */
+      case 'venomforest': {
+        const n = fx.pools || 8;
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * TAU;
+          this.hazards.push({ x: p.x + Math.cos(a) * 190, y: p.y + Math.sin(a) * 190, r: fx.radius || 110, life: 4.5, dmg: D * 0.45, color: '#84cc16', src: 'player', slow: 0.25 });
+        }
+        this.hazards.push({ x: p.x, y: p.y, r: 150, life: 4.5, dmg: D * 0.45, color: '#22c55e', src: 'player', slow: 0.25 });
+        for (let i = 0; i < 2; i++) {
+          this.rings.push({ x: p.x, y: p.y, r: 20, r1: 380 - i * 90, life: 0.6, max: 0.6, color: '#86efac', kind: 'psychic', hit: new Set(), dmg: D * (0.5 - i * 0.15), delay: i * 0.12 });
+        }
+        burst(p.x, p.y, 30, '#84cc16', 360);
+        break;
+      }
+
+      /* ---------- 광선 + 천둥 : 궤도에서 떨어지는 광선 기둥 ---------- */
+      case 'orbital': {
+        const n = fx.beams || 6;
+        const targets = this.nearestEnemies(n, 1e9);
+        for (let i = 0; i < n; i++) {
+          const t = targets[i];
+          const x = t ? t.x : p.x + RND(-400, 400);
+          const y = t ? t.y : p.y + RND(-400, 400);
+          this.beams.push({ x, y: y - 620, angle: Math.PI / 2, len: 620, width: 52, life: 0.5, max: 0.5, color: '#fde68a', hit: new Set(), dmg: D * 0.55, awake: true });
+          this.bolt(x, y - 600, x, y);
+          this.superRing(x, y, 130, D * 0.45, '#fde68a', { kind: 'meteor', delay: 0.22 });
+        }
+        break;
+      }
+
+      /* ---------- 얼음 + 거울 : 적 전체를 결정에 가둔 뒤 파쇄 ---------- */
+      case 'crystalcage': {
+        const R = fx.radius || 700;
+        const caught = enemiesIn(p.x, p.y, R);
+        for (const e of caught) {
+          e.freeze = Math.max(e.freeze, fx.freeze || 1.8);
+          this.damage(e, D * 0.25, { color: '#a5f3fc', silent: true });
+          this.superRing(e.x, e.y, 95, D * 0.6, '#a5f3fc', { kind: 'slam', delay: 0.45 + Math.random() * 0.2, stun: 0.4 });
+        }
+        this.rings.push({ x: p.x, y: p.y, r: 30, r1: R, life: 1.0, max: 1.0, color: '#e0f2fe', kind: 'ice', hit: new Set(), dmg: 0, delay: 0 });
+        this.cam.shake = 16;
+        break;
+      }
+
+      /* ---------- 고스트 + 악몽 : 발밑에 심연이 열린다 ---------- */
+      case 'abyss': {
+        this.hazards.push({ x: p.x, y: p.y, r: fx.radius || 280, life: fx.field || 4.5, dmg: D * 0.42, color: '#8b5cf6', src: 'player', slow: 0.35 });
+        for (const e of enemiesIn(p.x, p.y, 760)) {
+          if (!e.boss) e.fear = Math.max(e.fear, 1.1);
+          this.damage(e, D * 0.3, { color: '#8b5cf6', silent: true });
+        }
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * TAU;
+          this.projectiles.push({ x: p.x, y: p.y, vx: Math.cos(a) * 620, vy: Math.sin(a) * 620, r: 13, dmg: D * 0.4, life: 1.1, pierce: 3, kind: 'shadow', color: '#c084fc', hit: new Set() });
+        }
+        burst(p.x, p.y, 40, '#8b5cf6', 320);
+        break;
+      }
+
+      /* ---------- 불꽃 + 땅 : 대지가 터지며 마그마 기둥 ---------- */
+      case 'magma': {
+        const n = fx.vents || 9;
+        for (let i = 0; i < n; i++) {
+          const e = pick(this.enemies);
+          const x = e ? e.x + RND(-30, 30) : p.x + RND(-420, 420);
+          const y = e ? e.y + RND(-30, 30) : p.y + RND(-420, 420);
+          this.superRing(x, y, 120, D * 0.55, '#fb923c', { kind: 'slam', delay: 0.1 + i * 0.05, stun: 0.2 });
+          for (let k = 0; k < 10; k++) {
+            this.particles.push({ x: x + RND(-26, 26), y, vx: RND(-40, 40), vy: RND(-260, -120), life: RND(0.5, 0.9), max: 0.9, color: k % 2 ? '#fb923c' : '#fbbf24', r: RND(3, 8) });
+          }
+        }
+        for (const e of enemiesIn(p.x, p.y, 620)) e.burn = { t: 3, dps: D * 0.22 };
+        this.cam.shake = 20;
+        break;
+      }
+
+      /* ---------- 물 + 회오리 : 삼중 소용돌이 ---------- */
+      case 'maelstrom': {
+        for (let i = 0; i < (fx.waves || 3); i++) {
+          this.rings.push({ x: p.x, y: p.y, r: 30, r1: (fx.radius || 480) * (1 - i * 0.12), life: 0.75, max: 0.75, color: '#38bdf8', kind: 'psychic', hit: new Set(), dmg: D * (0.6 - i * 0.12), delay: i * 0.15, wide: 30 });
+        }
+        for (let i = 0; i < 18; i++) {
+          const a = (i / 18) * TAU * 2;
+          this.projectiles.push({ x: p.x, y: p.y, vx: Math.cos(a) * 540, vy: Math.sin(a) * 540, r: 10, dmg: D * 0.22, life: 1.2, pierce: 2, kind: 'water', color: '#7dd3fc', hit: new Set(), knock: 40 });
+        }
+        for (const e of enemiesIn(p.x, p.y, fx.radius || 480)) e.slow = Math.max(e.slow, 0.35);
+        burst(p.x, p.y, 34, '#38bdf8', 420);
+        break;
+      }
+
+      /* ---------- 파동 + 에코 : 공명 파동 4연타 + 추적 구체 ---------- */
+      case 'resonance': {
+        for (let i = 0; i < (fx.waves || 4); i++) {
+          this.rings.push({ x: p.x, y: p.y, r: 20, r1: 560 - i * 90, life: 0.6, max: 0.6, color: '#60a5fa', kind: 'echo', hit: new Set(), dmg: D * (0.55 - i * 0.1), delay: i * 0.11, stun: 0.25 });
+        }
+        for (const t of this.nearestEnemies(fx.orbs || 8, 820)) {
+          const a = Math.atan2(t.y - p.y, t.x - p.x);
+          this.projectiles.push({ x: p.x, y: p.y, vx: Math.cos(a) * 420, vy: Math.sin(a) * 420, r: 13, dmg: D * 0.42, life: 2, pierce: 2, kind: 'aura', color: '#60a5fa', hit: new Set(), homing: 7, blast: 70, chainBlast: true });
+        }
+        break;
+      }
+
+      /* ---------- 염동력 + 거울 : 좌표 왜곡 + 파편 폭풍 ---------- */
+      case 'mirage': {
+        const n = fx.rings || 6;
+        for (let i = 0; i < n; i++) {
+          const e = pick(this.enemies);
+          const x = e ? e.x : p.x + RND(-320, 320);
+          const y = e ? e.y : p.y + RND(-320, 320);
+          this.rings.push({ x, y, r: 20, r1: 190, life: 0.7, max: 0.7, color: '#f472b6', kind: 'psychic', hit: new Set(), dmg: D * 0.42, delay: 0.15 + i * 0.06, wide: 28 });
+        }
+        for (let i = 0; i < (fx.shards || 16); i++) {
+          const a = (i / (fx.shards || 16)) * TAU;
+          this.projectiles.push({ x: p.x, y: p.y, vx: Math.cos(a) * 700, vy: Math.sin(a) * 700, r: 9, dmg: D * 0.28, life: 1.05, pierce: 4, kind: 'mirror', color: '#f9a8d4', hit: new Set() });
+        }
+        break;
+      }
+
+      /* ---------- 별 + 페어리 : 별 열 개 + 달빛 회복 ---------- */
+      case 'starlit': {
+        for (let i = 0; i < (fx.meteors || 10); i++) {
+          const e = pick(this.enemies);
+          const x = e ? e.x + RND(-35, 35) : p.x + RND(-380, 380);
+          const y = e ? e.y + RND(-35, 35) : p.y + RND(-380, 380);
+          this.rings.push({ x, y, r: 4, r1: 105, life: 0.8, max: 0.8, color: '#f9a8d4', kind: 'meteor', hit: new Set(), dmg: D * 0.5, delay: 0.22 + i * 0.05 });
+        }
+        this.rings.push({ x: p.x, y: p.y, r: 20, r1: 400, life: 0.7, max: 0.7, color: '#fff1f7', kind: 'psychic', hit: new Set(), dmg: D * 0.35, delay: 0 });
+        const heal = p.maxHp * (fx.heal || 0.15);
+        p.hp = Math.min(p.maxHp, p.hp + heal);
+        this.floatText(p.x, p.y - 34, '+' + Math.round(heal), '#6ee7b7', 1.1);
+        burst(p.x, p.y, 40, '#f9a8d4', 380);
+        break;
+      }
+
+      /* ---------- 불꽃 + 별 : 작은 태양의 열파 ---------- */
+      case 'solaris': {
+        const n = fx.waves || 3;
+        for (let i = 0; i < n; i++) {
+          this.rings.push({ x: p.x, y: p.y, r: 30, r1: (fx.radius || 620) * (1 - i * 0.16), life: 0.7, max: 0.7, color: '#fbbf24', kind: 'quake', hit: new Set(), dmg: D * (0.7 - i * 0.16), delay: i * 0.18, stun: 0.2, wide: 34 });
+        }
+        for (const e of enemiesIn(p.x, p.y, fx.radius || 620)) e.burn = { t: 3.2, dps: D * 0.3 };
+        this.flash = 0.7;
+        this.superRing(p.x, p.y, 170, D * 0.5, '#ffe08a', { kind: 'meteor', delay: 0.05 });
+        burst(p.x, p.y, 60, '#fbbf24', 520);
+        break;
+      }
+
+      /* ---------- 얼음 + 불꽃 : 얼렸다 태우기를 반복 ---------- */
+      case 'frostfire': {
+        const n = fx.waves || 4;
+        for (let i = 0; i < n; i++) {
+          const ice = i % 2 === 0;
+          this.rings.push({ x: p.x, y: p.y, r: 30, r1: (fx.radius || 520) * (1 - i * 0.1), life: 0.62, max: 0.62, color: ice ? '#a5f3fc' : '#fb923c', kind: ice ? 'psychic' : 'quake', hit: new Set(), dmg: D * (0.6 - i * 0.1), delay: i * 0.14, wide: 30, stun: ice ? 0.1 : 0 });
+          for (const e of enemiesIn(p.x, p.y, (fx.radius || 520) * (1 - i * 0.1))) {
+            if (ice) e.freeze = Math.max(e.freeze, 0.7);
+            else e.burn = { t: 2.4, dps: D * 0.22 };
+          }
+        }
+        burst(p.x, p.y, 40, '#c4f1ff', 460);
+        break;
+      }
+
+      default: {
+        this.superRing(p.x, p.y, 420, D * 0.8, C, { kind: 'quake' });
+        break;
+      }
+    }
   }
 
   updateLeaf(w, st, dt) {

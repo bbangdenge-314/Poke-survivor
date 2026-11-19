@@ -4,14 +4,14 @@
 import {
   CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES,
   TYPE_COLORS, BRANCH_NAMES, FIELD_ITEMS, SUPER_AWAKENS, QUESTS, QUEST_BY_KEY, VIEW_MODES
-} from './data.js?v=24';
-import { spriteURL } from './sprites.js?v=24';
-import { setCryEnabled } from './sprites.js?v=24';
-import { setSfxEnabled } from './audio.js?v=24';
+} from './data.js?v=25';
+import { spriteURL } from './sprites.js?v=25';
+import { setCryEnabled } from './sprites.js?v=25';
+import { setSfxEnabled } from './audio.js?v=25';
 import {
   getSave, upgradeCost, buyUpgrade, isUnlocked, isStageUnlocked, isPassiveUnlocked,
   isFieldUnlocked, questState, claimQuest, questRewardText, setSetting, toggleSetting, persist
-} from './save.js?v=24';
+} from './save.js?v=25';
 
 const $ = id => document.getElementById(id);
 const AFFINITY_LABEL = id => WEAPONS[id] ? `${WEAPONS[id].icon}${WEAPONS[id].name}` : id;
@@ -29,6 +29,7 @@ export class UI {
     this.lastWeaponSig = '';
     this.game = null;
     this.pauseTabName = 'pause';
+    this.charFilter = { gen: 'all', type: 'all', unlock: 'all', q: '' };
   }
 
   /* ---------------- 공통 ---------------- */
@@ -72,7 +73,7 @@ export class UI {
             <div class="brand-text">
               <div class="brand-kicker">POKÉMON ROGUELIKE SURVIVOR</div>
               <h1>포켓 서바이버</h1>
-              <p>26마리의 포켓몬 · 7개 세계 · 각성과 초각성의 생존 모험</p>
+              <p>${CHARACTERS.length}마리의 포켓몬 · ${STAGES.length}개 세계 · 각성과 초각성의 생존 모험</p>
             </div>
           </div>
           <div class="head-right">
@@ -136,6 +137,7 @@ export class UI {
   /* ---------------- 모험 준비 ---------------- */
   showSelect() {
     const s = getSave();
+    this.charFilter = { gen: 'all', type: 'all', unlock: 'all', q: '' };
     const stageChips = STAGES.map(st => {
       const open = isStageUnlocked(st);
       const cleared = s.cleared.includes(st.key);
@@ -146,17 +148,6 @@ export class UI {
       </button>`;
     }).join('');
 
-    const charCards = CHARACTERS.map(c => {
-      const unlocked = isUnlocked(c);
-      const owned = !!s.shiny[c.key];
-      const on = this.selectedChar === c.key;
-      return `<button class="char-card ${on ? 'on' : ''} ${unlocked ? '' : 'locked'}" data-char="${c.key}">
-        ${owned ? '<span class="shiny-dot">✦</span>' : ''}
-        <img loading="lazy" src="${spriteURL(c.id, false)}" alt="${c.chain[0].name}">
-        <div class="cc-name">${c.chain[0].name}</div>
-        <div class="cc-rank ${c.rank === '전설' ? 'legend' : c.rank === '환상' ? 'myth' : ''}">${unlocked ? c.rank : '퀘스트'}</div>
-      </button>`;
-    }).join('');
 
     this.screen(`
       <div class="wrap">
@@ -168,8 +159,18 @@ export class UI {
         </div>
         <div class="section-title">스테이지 <span class="cnt">7개 세계</span></div>
         <div class="stage-row">${stageChips}</div>
-        <div class="section-title">포켓몬 <span class="cnt">${s.unlocked.length} / ${CHARACTERS.length} 해금</span></div>
-        <div class="char-grid">${charCards}</div>
+        <div class="section-title">포켓몬 <span class="cnt" id="charCount">${s.unlocked.length} / ${CHARACTERS.length} 해금</span></div>
+        <div class="filter-bar">
+          <div class="fb-search">
+            <span class="fb-ico">🔍</span>
+            <input id="charSearch" type="search" placeholder="이름으로 찾기 (한글 · 영문)" autocomplete="off">
+          </div>
+          <div class="fb-row" id="genChips"></div>
+          <div class="fb-row scroll" id="typeChips"></div>
+          <div class="fb-row" id="unlockChips"></div>
+        </div>
+        <div class="char-grid" id="charGrid"></div>
+        <div class="char-empty hidden" id="charEmpty">조건에 맞는 포켓몬이 없어요. 필터를 바꿔 보세요.</div>
         <div class="select-bottom">
           <div class="preview" id="preview"></div>
           <div class="start-panel" id="startPanel"></div>
@@ -189,7 +190,86 @@ export class UI {
         this.renderStartPanel();
       };
     });
-    this.root.querySelectorAll('[data-char]').forEach(el => {
+    this.renderCharFilters();
+    this.renderCharGrid();
+    $('charSearch').oninput = e => {
+      this.charFilter.q = e.target.value.trim().toLowerCase();
+      this.renderCharGrid();
+    };
+    $('backBtn').onclick = () => this.showTitle();
+    this.renderStartPanel();
+  }
+
+  /* ---------------- 로스터 필터 · 검색 ---------------- */
+  charTypes(c) {
+    const d = DEX[c.id];
+    return (d && d.t) || [];
+  }
+  charMatches(c) {
+    const f = this.charFilter;
+    const s = getSave();
+    if (f.gen !== 'all' && String(c.gen || '') !== String(f.gen)) return false;
+    if (f.type !== 'all' && !this.charTypes(c).includes(f.type)) return false;
+    const unlocked = isUnlocked(c);
+    if (f.unlock === 'open' && !unlocked) return false;
+    if (f.unlock === 'locked' && unlocked) return false;
+    if (f.q) {
+      const hay = [c.key, ...c.chain.map(x => x.name), DEX[c.id] ? DEX[c.id].n : '', c.rank || '',
+        ...(c.affinity || []), ...this.charTypes(c), c.sigName || ''].join(' ').toLowerCase();
+      if (!hay.includes(f.q)) return false;
+    }
+    if (f.unlock === 'shiny' && !s.shiny[c.key]) return false;
+    return true;
+  }
+  renderCharFilters() {
+    const f = this.charFilter;
+    const gens = [...new Set(CHARACTERS.map(c => c.gen || 0))].sort((a, b) => a - b);
+    const genChips = [`<button class="fb-chip ${f.gen === 'all' ? 'on' : ''}" data-gen="all">전체 세대</button>`]
+      .concat(gens.map(g => `<button class="fb-chip ${String(f.gen) === String(g) ? 'on' : ''}" data-gen="${g}">${g}세대<em>${CHARACTERS.filter(c => (c.gen || 0) === g).length}</em></button>`)).join('');
+    $('genChips').innerHTML = genChips;
+    const types = ['전체 타입', ...Object.keys(TYPE_COLORS)];
+    $('typeChips').innerHTML = types.map(t => {
+      const val = t === '전체 타입' ? 'all' : t;
+      const on = String(f.type) === String(val);
+      const col = t === '전체 타입' ? '#8296b4' : TYPE_COLORS[t];
+      return `<button class="fb-chip type ${on ? 'on' : ''}" data-type="${val}" style="--tc:${col}">${t}</button>`;
+    }).join('');
+    const unlocks = [['all', '전체'], ['open', '해금'], ['locked', '잠금'], ['shiny', '✦ 이로치']];
+    $('unlockChips').innerHTML = unlocks.map(([v, label]) =>
+      `<button class="fb-chip ${f.unlock === v ? 'on' : ''}" data-unlock="${v}">${label}</button>`).join('');
+    const bind = (sel, key, cast = x => x) => this.root.querySelectorAll(sel).forEach(el => {
+      el.onclick = () => {
+        this.charFilter[key] = cast(el.dataset[key]);
+        this.renderCharFilters();
+        this.renderCharGrid();
+      };
+    });
+    bind('[data-gen]', 'gen', v => v === 'all' ? 'all' : Number(v));
+    bind('[data-type]', 'type');
+    bind('[data-unlock]', 'unlock');
+  }
+  renderCharGrid() {
+    const grid = $('charGrid');
+    if (!grid) return;
+    const s = getSave();
+    const list = CHARACTERS.filter(c => this.charMatches(c));
+    grid.innerHTML = list.map(c => {
+      const unlocked = isUnlocked(c);
+      const owned = !!s.shiny[c.key];
+      const on = this.selectedChar === c.key;
+      const d = DEX[c.id] || { n: c.chain[0].name, t: [] };
+      return `<button class="char-card ${on ? 'on' : ''} ${unlocked ? '' : 'locked'}" data-char="${c.key}" title="${d.n} · ${c.rank}">
+        ${owned ? '<span class="shiny-dot">✦</span>' : ''}
+        <img loading="lazy" src="${spriteURL(c.id, false)}" alt="${c.chain[0].name}">
+        <div class="cc-name">${c.chain[0].name}</div>
+        <div class="cc-rank ${c.rank === '전설' ? 'legend' : c.rank === '환상' ? 'myth' : ''}">${unlocked ? c.rank : '퀘스트'}</div>
+      </button>`;
+    }).join('');
+    const cnt = $('charCount');
+    if (cnt) cnt.textContent = `${list.length}마리 표시 · ${s.unlocked.length}/${CHARACTERS.length} 해금`;
+    const empty = $('charEmpty');
+    if (empty) empty.classList.toggle('hidden', list.length > 0);
+    grid.querySelectorAll('[data-char]').forEach(el => {
       el.onclick = () => {
         const c = CHAR_BY_KEY[el.dataset.char];
         if (!isUnlocked(c)) {
@@ -199,12 +279,10 @@ export class UI {
         }
         this.selectedChar = c.key;
         if (!getSave().shiny[c.key]) this.shinyPref = false;
-        this.root.querySelectorAll('.char-card').forEach(x => x.classList.toggle('on', x.dataset.char === c.key));
+        grid.querySelectorAll('.char-card').forEach(x => x.classList.toggle('on', x.dataset.char === c.key));
         this.renderStartPanel();
       };
     });
-    $('backBtn').onclick = () => this.showTitle();
-    this.renderStartPanel();
   }
 
   renderStartPanel() {
@@ -504,8 +582,8 @@ export class UI {
         <div class="combo-note">액티브 기술 <b>Lv.6</b> + 짝 패시브 <b>Lv.1</b> → <b>각성 기술</b>. 레벨업 카드나 보물 상자에서 해금됩니다.</div>
         <div class="section-title">1단계 · 각성 조합 <span class="cnt">액티브 + 패시브</span></div>
         <div class="combo-table">${rows}</div>
-        <div class="section-title">2단계 · 초각성 트리 <span class="cnt">각성 + 각성 → 궁극기</span></div>
-        <div class="combo-note super">각성 기술 <b>2개</b>를 보유하면 레벨업·상자에서 <b>초각성</b> 카드가 등장합니다. 두 기술이 하나로 합쳐져 훨씬 강력해집니다.</div>
+        <div class="section-title">2단계 · 초각성 트리 <span class="cnt">각성 + 각성 → 궁극기 ${SUPER_AWAKENS.length}종</span></div>
+        <div class="combo-note super">각성 기술 <b>2개</b>를 보유하면 레벨업·상자에서 <b>초각성</b> 카드가 등장합니다. 각성 22종이 모두 최소 하나의 초각성 조합에 쓰이며, 궁극기마다 전투 방식이 다릅니다.</div>
         <div class="super-table">${superRows}</div>
       </div>`);
     $('backBtn').onclick = () => this.showTitle();
@@ -600,6 +678,19 @@ export class UI {
         return `<div class="wp ${w.awake ? 'awake' : ''} ${ready ? 'ready' : ''} ${isSuper ? 'super' : ''}" title="${w.awake ? d.awakeName : d.name} Lv.${w.lv}${ready ? ' · 각성 가능!' : ''}">
           <span>${w.awake ? d.awakeIcon : d.icon}</span><b>${isSuper ? '★' : w.awake ? '★' : w.lv}</b>
         </div>`;
+      }).join('');
+    }
+
+    /* 패시브 아이콘 (기술 HUD와 같은 스택 안, 별도 줄) */
+    const pvList = Object.keys(p.passives || {});
+    const pvSig = pvList.map(k => k + p.passives[k]).join(',');
+    if (pvSig !== this.lastPassiveSig) {
+      this.lastPassiveSig = pvSig;
+      const pvRow = $('passiveRow');
+      if (pvRow) pvRow.innerHTML = pvList.map(k => {
+        const d = PASSIVES[k];
+        if (!d) return '';
+        return `<div class="wp pv" title="${d.name} Lv.${p.passives[k]}"><span>${d.icon}</span><b>${p.passives[k]}</b></div>`;
       }).join('');
     }
 
