@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
 <title>포켓 서바이버 · Poke Survivor</title>
-<link rel="stylesheet" href="styles.css?v=19">
+<link rel="stylesheet" href="styles.css?v=20">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23fff' stroke='%230b1020' stroke-width='8'/><path d='M4 50h92' stroke='%230b1020' stroke-width='10'/><circle cx='50' cy='50' r='15' fill='%23ef4444' stroke='%230b1020' stroke-width='6'/></svg>">
 </head>
 <body>
@@ -47,7 +47,7 @@
   <div class="lu-head">
     <div class="lu-kicker">LEVEL UP!</div>
     <h2>기술을 선택하세요</h2>
-    <p>하나를 골라 더 강해지세요</p>
+    <p>액티브 만렙 + 짝 패시브로 <b style="color:#fbbf24">각성 기술</b>을 해금하세요</p>
   </div>
   <div id="cardList" class="card-list"></div>
 </div>
@@ -77,15 +77,44 @@
   <div id="branchList" class="branch-list"></div>
 </div>
 
-<!-- ================= 일시정지 ================= -->
+<!-- ================= 일시정지 (미니맵 · 조합표 포함) ================= -->
 <div id="pauseOverlay" class="overlay hidden">
-  <div class="panel pause-panel">
-    <h2>일시정지</h2>
-    <button class="btn primary" id="resumeBtn">계속하기</button>
-    <button class="btn ghost" id="soundBtn">효과음: 켜짐</button>
-    <button class="btn ghost" id="cryBtn">울음소리: 켜짐</button>
-    <button class="btn danger" id="quitBtn">로비로 나가기</button>
-    <p class="tiny">나가면 이번 판 보상은 사라져요</p>
+  <div class="panel pause-panel" id="pausePanel">
+    <div class="pause-tabs">
+      <button id="ptab-pause" class="on">⏸ 일시정지</button>
+      <button id="ptab-map">🗺 미니맵</button>
+      <button id="ptab-combo">🔗 조합표</button>
+    </div>
+
+    <div class="pause-tab" id="tab-pause">
+      <div id="runSummary"></div>
+      <button class="btn primary" id="resumeBtn">계속하기</button>
+      <div class="pause-settings">
+        <button class="btn ghost" id="soundBtn">효과음: 켜짐</button>
+        <button class="btn ghost" id="cryBtn">울음소리: 켜짐</button>
+      </div>
+      <button class="btn danger" id="quitBtn">로비로 나가기</button>
+      <p class="tiny">나가면 이번 판 보상은 사라져요</p>
+    </div>
+
+    <div class="pause-tab hidden" id="tab-map">
+      <h2>전체 지도</h2>
+      <div class="map-frame"><canvas id="pauseMap"></canvas></div>
+      <div class="map-legend">
+        <span><i class="dot player"></i>나</span>
+        <span><i class="dot boss"></i>보스</span>
+        <span><i class="dot legend"></i>환상</span>
+        <span><i class="dot chest"></i>보물상자</span>
+        <span><i class="dot item"></i>필드 아이템</span>
+        <span><i class="dot prop"></i>파괴 오브젝트</span>
+      </div>
+      <div class="map-info" id="mapInfo"></div>
+    </div>
+
+    <div class="pause-tab hidden" id="tab-combo">
+      <h2>기술 조합</h2>
+      <div id="comboList"></div>
+    </div>
   </div>
 </div>
 
@@ -94,6 +123,6 @@
   <div class="pokeball"></div>
   <div class="loading-text">포켓몬을 불러오는 중…<span id="loadPct">0%</span></div>
 </div>
-<script type="module" src="src/main.js?v=19"></script>
+<script type="module" src="src/main.js?v=20"></script>
 </body>
 </html>

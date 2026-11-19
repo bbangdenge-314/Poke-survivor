@@ -62,99 +62,117 @@ export const DEX = {
 };
 
 /* ---------- 기술(무기) ---------- */
-/* s(lv) : 레벨별 수치.  max=6, 6레벨에서 각성 */
+/* s(lv) : 레벨별 수치.  max=6, 6레벨 + 짝 패시브 조합 시 각성 */
+/* pair : 각성에 필요한 패시브 키 */
 export const WEAPONS = {
   thunder: {
-    name:'10만볼트', icon:'⚡', type:'전기', color:'#fbbf24', max:6,
+    name:'10만볼트', icon:'⚡', type:'전기', color:'#fbbf24', max:6, pair:'cooldown',
     desc:'가장 가까운 적에게 연쇄 번개. 레벨이 오르면 연쇄 수가 늘어난다.',
     stats: lv => ({ dmg: 22 + 9 * lv, cd: Math.max(0.32, 1.15 - lv * 0.09), count: 1 + Math.floor(lv / 3), chains: 2 + lv, range: 540 }),
-    awake:'천둥의 심판 — 화면 전체 적에게 번개가 내리친다.'
+    awakeName:'천둥의 심판', awakeIcon:'🌩️', awakeColor:'#fde047',
+    awakeDesc:'화면 전체의 적에게 번개가 내리치고, 연쇄가 2배로 늘어난다.'
   },
   flame: {
-    name:'화염방사', icon:'🔥', type:'불꽃', color:'#fb923c', max:6,
+    name:'화염방사', icon:'🔥', type:'불꽃', color:'#fb923c', max:6, pair:'power',
     desc:'전방으로 화염을 뿌려 화상을 입힌다.',
     stats: lv => ({ dmg: 11 + 5.2 * lv, cd: Math.max(0.2, 0.62 - lv * 0.05), count: 3 + lv, range: 300 + lv * 22 }),
-    awake:'불대문자 — 회오리 불꽃이 사방을 태운다.'
+    awakeName:'불대문자', awakeIcon:'🔥', awakeColor:'#fdba74',
+    awakeDesc:'회오리 불꽃이 사방을 태우고 화상 피해가 두 배가 된다.'
   },
   water: {
-    name:'물대포', icon:'💧', type:'물', color:'#38bdf8', max:6,
+    name:'물대포', icon:'💧', type:'물', color:'#38bdf8', max:6, pair:'speed',
     desc:'관통하는 물줄기를 발사한다.',
     stats: lv => ({ dmg: 16 + 6.5 * lv, cd: Math.max(0.35, 1.05 - lv * 0.08), count: 1 + Math.floor(lv / 2), pierce: 3 + lv }),
-    awake:'하이드로펌프 — 거대한 물기둥이 전장을 가른다.'
+    awakeName:'하이드로펌프', awakeIcon:'🌊', awakeColor:'#7dd3fc',
+    awakeDesc:'거대한 물기둥이 전장을 가르며 적을 밀어낸다.'
   },
   leaf: {
-    name:'잎날가르기', icon:'🍃', type:'풀', color:'#4ade80', max:6,
+    name:'잎날가르기', icon:'🍃', type:'풀', color:'#4ade80', max:6, pair:'regen',
     desc:'주변을 회전하는 잎날이 적을 벤다.',
     stats: lv => ({ dmg: 12 + 5.5 * lv, cd: 0.42, count: 2 + lv, radius: 78 + lv * 9, spin: 2.4 + lv * 0.16 }),
-    awake:'리프스톰 — 잎날 폭풍이 두 배로 늘어난다.'
+    awakeName:'리프스톰', awakeIcon:'🌿', awakeColor:'#86efac',
+    awakeDesc:'잎날 폭풍이 두 배로 늘고 회전이 빨라진다.'
   },
   shadow: {
-    name:'섀도볼', icon:'🌑', type:'고스트', color:'#a78bfa', max:6,
+    name:'섀도볼', icon:'🌑', type:'고스트', color:'#a78bfa', max:6, pair:'crit',
     desc:'적을 추적하는 그림자 구체가 폭발한다.',
     stats: lv => ({ dmg: 26 + 11 * lv, cd: Math.max(0.5, 1.5 - lv * 0.1), count: 1 + Math.floor(lv / 2), blast: 52 + lv * 6 }),
-    awake:'섀도다이브 — 모든 그림자가 적을 삼킨다.'
+    awakeName:'섀도다이브', awakeIcon:'🕳️', awakeColor:'#c4b5fd',
+    awakeDesc:'모든 그림자가 적을 삼키고, 폭발이 연쇄한다.'
   },
   psychic: {
-    name:'사이코키네시스', icon:'🔮', type:'에스퍼', color:'#f472b6', max:6,
+    name:'사이코키네시스', icon:'🔮', type:'에스퍼', color:'#f472b6', max:6, pair:'magnet',
     desc:'주변을 뒤흔드는 염동력 파동.',
     stats: lv => ({ dmg: 18 + 7.5 * lv, cd: Math.max(0.6, 1.9 - lv * 0.12), radius: 150 + lv * 26 }),
-    awake:'사이코브레이크 — 공간을 뒤틀어 적을 끌어당긴다.'
+    awakeName:'사이코브레이크', awakeIcon:'🌀', awakeColor:'#f9a8d4',
+    awakeDesc:'공간을 뒤틀어 적을 끌어당기고 광역 피해를 준다.'
   },
   quake: {
-    name:'지진', icon:'🌍', type:'땅', color:'#d9b45a', max:6,
+    name:'지진', icon:'🌍', type:'땅', color:'#d9b45a', max:6, pair:'armor',
     desc:'지면을 강타해 주변을 밀어낸다.',
     stats: lv => ({ dmg: 30 + 12 * lv, cd: Math.max(0.8, 2.4 - lv * 0.15), radius: 150 + lv * 22 }),
-    awake:'대지진 — 전장이 갈라지고 충격파가 연쇄한다.'
+    awakeName:'대지진', awakeIcon:'⛰️', awakeColor:'#eab308',
+    awakeDesc:'전장이 갈라지고 충격파가 3연타로 연쇄한다.'
   },
   beam: {
-    name:'파괴광선', icon:'☄️', type:'노말', color:'#fde68a', max:6,
+    name:'파괴광선', icon:'☄️', type:'노말', color:'#fde68a', max:6, pair:'power',
     desc:'전방을 향해 굵은 광선을 발사한다.',
     stats: lv => ({ dmg: 40 + 20 * lv, cd: Math.max(1.1, 3.2 - lv * 0.25), width: 44 + lv * 5, length: 720 + lv * 60 }),
-    awake:'기가임팩트 — 광선이 폭발해 주변을 휩쓴다.'
+    awakeName:'기가임팩트', awakeIcon:'💥', awakeColor:'#fef08a',
+    awakeDesc:'광선이 폭발해 주변을 휩쓸고 적을 날려버린다.'
   },
   claw: {
-    name:'드래곤클로', icon:'🐉', type:'드래곤', color:'#818cf8', max:6,
+    name:'드래곤클로', icon:'🐉', type:'드래곤', color:'#818cf8', max:6, pair:'crit',
     desc:'전방을 크게 베는 참격. 치명타가 잘 터진다.',
     stats: lv => ({ dmg: 34 + 16 * lv, cd: Math.max(0.4, 1.05 - lv * 0.07), count: 1 + Math.floor(lv / 3), range: 150 + lv * 12 }),
-    awake:'역린 — 연속 참격이 폭풍처럼 몰아친다.'
+    awakeName:'역린', awakeIcon:'⚔️', awakeColor:'#a5b4fc',
+    awakeDesc:'연속 참격이 폭풍처럼 몰아치고 잔상이 적을 벤다.'
   },
   ice: {
-    name:'냉동빔', icon:'❄️', type:'얼음', color:'#7dd3fc', max:6,
+    name:'냉동빔', icon:'❄️', type:'얼음', color:'#7dd3fc', max:6, pair:'armor',
     desc:'관통하는 냉기를 발사해 적을 얼린다.',
     stats: lv => ({ dmg: 15 + 6 * lv, cd: Math.max(0.4, 1.25 - lv * 0.09), count: 1 + Math.floor(lv / 2), pierce: 4 + lv, slow: 0.35 + lv * 0.05 }),
-    awake:'블리자드 — 전장이 얼어붙고 적이 멈춘다.'
+    awakeName:'블리자드', awakeIcon:'🌨️', awakeColor:'#e0f2fe',
+    awakeDesc:'전장이 얼어붙고 주변 적이 멈춘다.'
   },
   aura: {
-    name:'파동탄', icon:'💫', type:'격투', color:'#60a5fa', max:6,
+    name:'파동탄', icon:'💫', type:'격투', color:'#60a5fa', max:6, pair:'vitality',
     desc:'적을 추적하는 파동 구체. 관통하며 폭발한다.',
     stats: lv => ({ dmg: 24 + 10 * lv, cd: Math.max(0.42, 1.3 - lv * 0.1), count: 1 + Math.floor(lv / 2), blast: 44 + lv * 5 }),
-    awake:'파동폭발 — 파동이 연쇄 폭발한다.'
+    awakeName:'파동폭발', awakeIcon:'🌊', awakeColor:'#93c5fd',
+    awakeDesc:'파동이 연쇄 폭발하며 사방으로 퍼진다.'
   },
   star: {
-    name:'소원의별', icon:'🌟', type:'강철', color:'#fcd34d', max:6,
+    name:'소원의별', icon:'🌟', type:'강철', color:'#fcd34d', max:6, pair:'coin',
     desc:'하늘에서 별이 떨어져 적을 압사시킨다.',
     stats: lv => ({ dmg: 34 + 15 * lv, cd: Math.max(0.6, 1.7 - lv * 0.12), count: 1 + lv, blast: 60 + lv * 5 }),
-    awake:'유성군 — 별의 비가 쏟아진다.'
+    awakeName:'유성군', awakeIcon:'🌠', awakeColor:'#fde68a',
+    awakeDesc:'별의 비가 쏟아지고 착탄점이 폭발한다.'
   },
   dash: {
-    name:'전광석화', icon:'💨', type:'노말', color:'#fca5a5', max:6,
+    name:'전광석화', icon:'💨', type:'노말', color:'#fca5a5', max:6, pair:'speed',
     desc:'전방으로 돌진해 지나가는 적을 벤다.',
     stats: lv => ({ dmg: 34 + 15 * lv, cd: Math.max(0.34, 1.0 - lv * 0.09), dist: 170 + lv * 16 }),
-    awake:'신속 — 잔상을 남기며 연속 돌진한다.'
+    awakeName:'신속', awakeIcon:'⚡', awakeColor:'#fecaca',
+    awakeDesc:'잔상을 남기며 연속으로 두 번 돌진한다.'
   },
   slam: {
-    name:'바디프레스', icon:'💥', type:'노말', color:'#fbbf24', max:6,
+    name:'바디프레스', icon:'💥', type:'노말', color:'#fbbf24', max:6, pair:'vitality',
     desc:'몸 전체로 내리찍어 기절시킨다.',
     stats: lv => ({ dmg: 44 + 18 * lv, cd: Math.max(0.85, 2.4 - lv * 0.19), radius: 155 + lv * 22 }),
-    awake:'기가임팩트급 충격 — 착지 충격파가 2연타.'
+    awakeName:'기가프레스', awakeIcon:'🪨', awakeColor:'#fcd34d',
+    awakeDesc:'착지 충격파가 2연타로 터지고 적을 기절시킨다.'
   },
   nightmare: {
-    name:'악몽', icon:'😈', type:'악', color:'#c084fc', max:6,
+    name:'악몽', icon:'😈', type:'악', color:'#c084fc', max:6, pair:'xp',
     desc:'주변에 악몽의 장막을 펼쳐 지속 피해를 준다.',
     stats: lv => ({ dmg: 8 + 4 * lv, cd: 0.5, radius: 120 + lv * 14 }),
-    awake:'암흑세계 — 장막이 넓어지고 적이 공포에 질린다.'
+    awakeName:'암흑세계', awakeIcon:'🌌', awakeColor:'#d8b4fe',
+    awakeDesc:'장막이 넓어지고 적이 공포에 질려 도망친다.'
   }
 };
+
+export const WEAPON_IDS = Object.keys(WEAPONS);
 
 export const PASSIVES = {
   power:    { name:'힘의 머리띠', icon:'🎽', max:5, desc:'공격력 +12%', color:'#f87171' },
@@ -169,71 +187,131 @@ export const PASSIVES = {
   coin:     { name:'부적금화',   icon:'🪙', max:5, desc:'코인 획득 +22%', color:'#fbbf24' }
 };
 
+/* ---------- 필드 아이템 ---------- */
+export const FIELD_ITEMS = {
+  berry:  { name:'오랭열매',   icon:'🍒', color:'#f87171', desc:'체력 22% 회복' },
+  magnet: { name:'자석 오브',  icon:'🧲', color:'#a78bfa', desc:'경험치·아이템 흡수' },
+  coin:   { name:'코인 주머니', icon:'🪙', color:'#fbbf24', desc:'코인 +28' },
+  bomb:   { name:'충격파 폭탄', icon:'💣', color:'#fb923c', desc:'화면 전체 피해' },
+  guard:  { name:'수호의 방패', icon:'🛡️', color:'#7dd3fc', desc:'4초 무적' },
+  haste:  { name:'가속의 깃털', icon:'🪶', color:'#34d399', desc:'6초 이동 +50%' },
+  candy:  { name:'경험치 사탕', icon:'🍬', color:'#60a5fa', desc:'경험치 +26' }
+};
+export const FIELD_ITEM_KEYS = Object.keys(FIELD_ITEMS);
+
+/* 파괴 가능한 오브젝트 */
+export const PROP_TYPES = {
+  crate:  { name:'상자', hp:60,  r:22, drop:'item' },
+  rock:   { name:'바위', hp:95,  r:26, drop:'coin' },
+  crystal:{ name:'수정', hp:75,  r:20, drop:'candy' }
+};
+
 /* ---------- 플레이어블 포켓몬 ---------- */
-/* chain: 진화 단계 (lv = 이 레벨에 도달하면 진화) */
+/* affinity : 친화 기술(등장 가중치 ↑)  mastery : 타입 피해 보너스
+   weaponBonus : 캐릭터 전용 기술 강화 */
 export const CHARACTERS = [
   { key:'bulbasaur', id:1, rank:'스타터', weapon:'leaf', sig:'photosynthesis', sigName:'광합성',
     sigDesc:'초당 체력 1.6 회복', hp:120, speed:198, dmg:1.0,
+    affinity:['leaf','ice','nightmare'], mastery:{'풀':0.18,'독':0.08},
+    weaponBonus:{ leaf:{ count:1 } }, trait:'풀 기술을 쓰면 잎날이 하나 더 돈다',
     chain:[{id:1,name:'이상해씨',lv:1},{id:2,name:'이상해풀',lv:6},{id:3,name:'이상해꽃',lv:14}] },
   { key:'charmander', id:4, rank:'스타터', weapon:'flame', sig:'blaze', sigName:'맹화',
-    sigDesc:'불꽃 피해 +25%', hp:100, speed:208, dmg:1.08,
+    sigDesc:'불꽃 기술 피해 +30%', hp:100, speed:208, dmg:1.08,
+    affinity:['flame','dash','quake'], mastery:{'불꽃':0.30},
+    weaponBonus:{ flame:{ count:1 } }, trait:'불꽃 기술의 화상 피해가 2배',
     chain:[{id:4,name:'파이리',lv:1},{id:5,name:'리자드',lv:6},{id:6,name:'리자몽',lv:14}] },
   { key:'squirtle', id:7, rank:'스타터', weapon:'water', sig:'shell', sigName:'단단한 껍질',
     sigDesc:'받는 피해 18% 감소', hp:136, speed:200, dmg:0.95,
+    affinity:['water','ice','slam'], mastery:{'물':0.28},
+    weaponBonus:{ water:{ pierce:2 } }, trait:'물 기술이 적을 밀어낸다',
     chain:[{id:7,name:'꼬부기',lv:1},{id:8,name:'어니부기',lv:6},{id:9,name:'거북왕',lv:14}] },
   { key:'pikachu', id:25, rank:'스타터', weapon:'thunder', sig:'static', sigName:'정전기',
     sigDesc:'접촉한 적에게 감전 피해', hp:95, speed:222, dmg:1.05,
+    affinity:['thunder','dash','beam'], mastery:{'전기':0.35},
+    weaponBonus:{ thunder:{ chains:2 } }, trait:'번개 연쇄가 2회 더 튄다',
     chain:[{id:25,name:'피카츄',lv:1},{id:26,name:'라이츄',lv:6}] },
   { key:'eevee', id:133, rank:'스타터', weapon:'dash', sig:'adapt', sigName:'적응력',
     sigDesc:'경험치 +20%, 선택지 1장 추가', hp:104, speed:215, dmg:1.0,
+    affinity:['dash','aura','star'], mastery:{'노말':0.16},
+    weaponBonus:{ dash:{ dist:30 } }, trait:'모든 기술을 고르게 성장시킨다',
     chain:[{id:133,name:'이브이',lv:1}],
     awaken:[12,20],
     branch:{ lv:6, options:[134,135,136,196,197] } },
   { key:'gengar', id:94, rank:'스타터', weapon:'shadow', sig:'levitate', sigName:'부유',
     sigDesc:'이동속도 +12%, 접촉 피해 15% 회피', hp:100, speed:210, dmg:1.1,
+    affinity:['shadow','nightmare','psychic'], mastery:{'고스트':0.30,'독':0.10},
+    weaponBonus:{ shadow:{ blast:1.2, count:1, pierce:1 } }, trait:'그림자 구체가 폭발하며 관통한다',
     chain:[{id:94,name:'팬텀',lv:1}], awaken:[8,18] },
   { key:'lucario', id:448, rank:'스타터', weapon:'aura', sig:'innerfocus', sigName:'정신집중',
     sigDesc:'치명타 확률 +15%', hp:108, speed:214, dmg:1.12,
+    affinity:['aura','claw','beam'], mastery:{'격투':0.28,'강철':0.10},
+    weaponBonus:{ aura:{ count:1 } }, trait:'파동탄이 하나 더 발사된다',
     chain:[{id:448,name:'루카리오',lv:1}], awaken:[8,18] },
   { key:'garchomp', id:445, rank:'스타터', weapon:'claw', sig:'roughskin', sigName:'깎이는 살갗',
     sigDesc:'접촉한 적에게 반사 피해', hp:130, speed:205, dmg:1.1,
+    affinity:['claw','quake','dash'], mastery:{'드래곤':0.30,'땅':0.12},
+    weaponBonus:{ claw:{ count:1 } }, trait:'참격이 한 번 더 터진다',
     chain:[{id:445,name:'한카리아스',lv:1}], awaken:[8,18] },
   { key:'gyarados', id:130, rank:'스타터', weapon:'water', sig:'intimidate', sigName:'위협',
     sigDesc:'주변 적 이동속도 -18%', hp:142, speed:196, dmg:1.1,
+    affinity:['water','slam','beam'], mastery:{'물':0.24,'비행':0.12},
+    weaponBonus:{ water:{ count:1 } }, trait:'물대포가 한 줄 더 뻗는다',
     chain:[{id:130,name:'갸라도스',lv:1}], awaken:[8,18] },
   { key:'snorlax', id:143, rank:'스타터', weapon:'slam', sig:'thickfat', sigName:'두꺼운 지방',
     sigDesc:'최대 HP +25%, 받는 피해 8% 감소', hp:180, speed:175, dmg:0.95,
+    affinity:['slam','quake','leaf'], mastery:{'노말':0.24},
+    weaponBonus:{ slam:{ radius:1.18 } }, trait:'착지 충격파 범위가 넓다',
     chain:[{id:143,name:'잠만보',lv:1}], awaken:[8,18] },
 
   { key:'charizard', id:6, rank:'해금', weapon:'flame', sig:'blaze', sigName:'맹화',
-    sigDesc:'불꽃 피해 +25%', hp:120, speed:218, dmg:1.15, cost:1200,
+    sigDesc:'불꽃 기술 피해 +30%', hp:120, speed:218, dmg:1.15, cost:1200,
+    affinity:['flame','beam','dash'], mastery:{'불꽃':0.32,'비행':0.10},
+    weaponBonus:{ flame:{ count:2 } }, trait:'화염방사가 두 줄 더 뿜어진다',
     chain:[{id:6,name:'리자몽',lv:1}], awaken:[8,18] },
   { key:'blastoise', id:9, rank:'해금', weapon:'water', sig:'shell', sigName:'단단한 껍질',
     sigDesc:'받는 피해 18% 감소', hp:156, speed:205, dmg:1.0, cost:1200,
+    affinity:['water','beam','aura'], mastery:{'물':0.30},
+    weaponBonus:{ water:{ pierce:2, count:1 } }, trait:'물대포가 두 줄로 발사된다',
     chain:[{id:9,name:'거북왕',lv:1}], awaken:[8,18] },
   { key:'venusaur', id:3, rank:'해금', weapon:'leaf', sig:'photosynthesis', sigName:'광합성',
     sigDesc:'초당 체력 1.9 회복', hp:146, speed:200, dmg:1.05, cost:1200,
+    affinity:['leaf','nightmare','star'], mastery:{'풀':0.32,'독':0.10},
+    weaponBonus:{ leaf:{ count:1, radius:1.1 } }, trait:'잎날이 크고 하나 더 돈다',
     chain:[{id:3,name:'이상해꽃',lv:1}], awaken:[8,18] },
   { key:'metagross', id:376, rank:'해금', weapon:'star', sig:'clearbody', sigName:'클리어바디',
     sigDesc:'방어 +12%, 둔화 무시', hp:150, speed:196, dmg:1.1, cost:2600,
+    affinity:['star','psychic','beam'], mastery:{'강철':0.30,'에스퍼':0.12},
+    weaponBonus:{ star:{ count:1 } }, trait:'떨어지는 별이 하나 더 많다',
     chain:[{id:376,name:'메타그로스',lv:1}], awaken:[8,18] },
   { key:'darkrai', id:491, rank:'환상', weapon:'nightmare', sig:'baddreams', sigName:'나쁜꿈',
     sigDesc:'주변 적에게 지속 피해', hp:118, speed:214, dmg:1.12, cost:3200,
+    affinity:['nightmare','shadow','psychic'], mastery:{'악':0.35,'고스트':0.10},
+    weaponBonus:{ nightmare:{ radius:1.15 } }, trait:'악몽 장막이 넓고 깊다',
     chain:[{id:491,name:'다크라이',lv:1}], awaken:[8,18] },
   { key:'jirachi', id:385, rank:'환상', weapon:'star', sig:'wish', sigName:'소원',
     sigDesc:'25초마다 체력 12 회복 + 코인', hp:112, speed:208, dmg:1.08, cost:3600,
+    affinity:['star','aura','ice'], mastery:{'강철':0.28,'에스퍼':0.12},
+    weaponBonus:{ star:{ cd:0.88 } }, trait:'별이 더 자주 떨어진다',
     chain:[{id:385,name:'지라치',lv:1}], awaken:[8,18] },
   { key:'lugia', id:249, rank:'전설', weapon:'beam', sig:'multiscale', sigName:'멀티스케일',
     sigDesc:'HP 70% 이상일 때 피해 -25%', hp:160, speed:206, dmg:1.15, cost:3800,
+    affinity:['beam','water','psychic'], mastery:{'에스퍼':0.28,'비행':0.14},
+    weaponBonus:{ beam:{ width:1.2 } }, trait:'파괴광선이 더 굵다',
     chain:[{id:249,name:'루기아',lv:1}], awaken:[8,18] },
   { key:'mewtwo', id:150, rank:'전설', weapon:'psychic', sig:'pressure', sigName:'프레셔',
     sigDesc:'공격력 +20%', hp:132, speed:220, dmg:1.2, cost:4200,
+    affinity:['psychic','aura','shadow'], mastery:{'에스퍼':0.38},
+    weaponBonus:{ psychic:{ radius:1.15, cd:0.9 } }, trait:'염동력 파동이 넓게 퍼진다',
     chain:[{id:150,name:'뮤츠',lv:1}], awaken:[8,18] },
   { key:'rayquaza', id:384, rank:'전설', weapon:'claw', sig:'airlock', sigName:'에어록',
     sigDesc:'공격력 +15%, 이동 +8%', hp:146, speed:226, dmg:1.25, cost:4800,
+    affinity:['claw','beam','thunder'], mastery:{'드래곤':0.34,'비행':0.14},
+    weaponBonus:{ claw:{ dmg:1.12, count:1 } }, trait:'참격이 강하고 하나 더 터진다',
     chain:[{id:384,name:'레쿠쟈',lv:1}], awaken:[8,18] },
   { key:'mew', id:151, rank:'환상', weapon:'aura', sig:'transform', sigName:'변신',
     sigDesc:'모든 기술 레벨 +1', hp:116, speed:230, dmg:1.1, cost:5200,
+    affinity:['aura','psychic','star'], mastery:{'에스퍼':0.20,'노말':0.10,'풀':0.10,'불꽃':0.10,'물':0.10,'전기':0.10},
+    weaponBonus:{ aura:{ count:1 } }, trait:'모든 기술을 하나씩 더 익힌다',
     chain:[{id:151,name:'뮤',lv:1}], awaken:[8,18] }
 ];
 
@@ -271,7 +349,7 @@ export const ENEMIES = {
   ponyta:    { id:77, n:'포니타', hp:88,  spd:118, r:18, dmg:14, xp:4, ai:'dash' },
   magnemite: { id:81, n:'코일',   hp:78,  spd:74,  r:17, dmg:12, xp:4, ai:'ranged' },
   gloom:     { id:44, n:'냄새꼬', hp:104, spd:56,  r:20, dmg:14, xp:4, ai:'poison' },
-  haunter:   { id:93, n:'고우스트',hp:96, spd:98,  r:19, dmg:15, xp:5, ai:'zigzag' },
+  haunter:   { id:93, n:'고우스트',hp:96,  spd:98,  r:19, dmg:15, xp:5, ai:'zigzag' },
   arbok:     { id:24, n:'아보크', hp:130, spd:86,  r:22, dmg:17, xp:6, ai:'chase' },
   staryu:    { id:120, n:'별가사리',hp:100, spd:80, r:18, dmg:14, xp:5, ai:'ranged' },
   scyther:   { id:123, n:'스라크', hp:118, spd:132, r:20, dmg:18, xp:6, ai:'dash' },
@@ -288,7 +366,7 @@ export const ENEMIES = {
   pinsirE:   { id:127, n:'쁘사이저',hp:290, spd:104, r:25, dmg:26, xp:11, ai:'dash' },
   /* 보스 */
   boss_nidoking:{ id:34,  n:'니드킹',  hp:1000, spd:72,  r:42, dmg:34, xp:60, ai:'boss', boss:true },
-  boss_alakazam:{ id:65, n:'후딘',    hp:1600, spd:84,  r:40, dmg:32, xp:70, ai:'boss', boss:true, ranged:true },
+  boss_alakazam:{ id:65,  n:'후딘',    hp:1600, spd:84,  r:40, dmg:32, xp:70, ai:'boss', boss:true, ranged:true },
   boss_gyarados:{ id:130, n:'갸라도스',hp:2400, spd:66,  r:48, dmg:40, xp:90, ai:'boss', boss:true },
   boss_dragonite:{ id:149,n:'망나뇽',  hp:3300, spd:88,  r:46, dmg:42, xp:110, ai:'boss', boss:true, ranged:true },
   boss_tyranitar:{ id:248,n:'마기라스',hp:4600, spd:74,  r:50, dmg:48, xp:130, ai:'boss', boss:true },
@@ -314,6 +392,8 @@ export const STAGES = [
     key:'meadow', name:'관동 초원', sub:'초보 트레이너의 첫 모험', duration:900,
     desc:'15분간 버텨라. 마지막에 뮤츠가 강림한다.',
     sky:['#0d1b2a','#16324f'], ground:['#2c6247','#1d4a35'], accent:'#4ade80', deco:'grass',
+    terrain:{ theme:'meadow', water:'#2563eb', waterDeep:'#1e40af', waterEdge:'#93c5fd', path:'#8a7a52', foliage:['#1f7a4d','#2f9e63','#57b97c'],
+      mix:['grass','flower','pond','tree','rock','path'] },
     pools:[
       { t:0,   list:['caterpie','rattata','pidgey','weedle'] },
       { t:45,  list:['zubat','oddish','nidoranf','diglett'] },
@@ -334,6 +414,8 @@ export const STAGES = [
     key:'cave', name:'은빛 동굴', sub:'빛도 들지 않는 깊은 동굴', duration:900,
     desc:'더 강한 적이 몰려온다. 보상도 두 배.',
     sky:['#14121f','#241d33'], ground:['#3d3d4e','#2a2a38'], accent:'#a5b4fc', deco:'rock',
+    terrain:{ theme:'cave', water:'#f97316', waterDeep:'#b91c1c', waterEdge:'#fdba74', path:'#585872', foliage:['#3f3f52','#4e4e66','#63637f'],
+      mix:['rock','crystal','lava','stalagmite','path','gravel'] },
     pools:[
       { t:0,   list:['geodude','zubat','diglett','sandshrew'] },
       { t:45,  list:['onix','machop','koffing','cubone'] },
@@ -354,6 +436,8 @@ export const STAGES = [
     key:'sky', name:'하늘 제단', sub:'전설이 잠든 구름 위의 성소', duration:900,
     desc:'최종 스테이지. 모든 것이 가장 강하다.',
     sky:['#1a1030','#3b1d5c'], ground:['#432b6b','#2e1f4d'], accent:'#c084fc', deco:'star',
+    terrain:{ theme:'sky', water:'#38bdf8', waterDeep:'#6366f1', waterEdge:'#c7d2fe', path:'#a78bfa', foliage:['#6d4a9c','#8460b8','#a184d6'],
+      mix:['cloud','pillar','star','rainbow','path','flower'] },
     pools:[
       { t:0,   list:['pidgey','zubat','gastly','ponyta'] },
       { t:45,  list:['haunter','magnemite','drowzee','voltorb'] },

@@ -329,3 +329,143 @@ button{font-family:inherit;cursor:pointer;border:0;color:inherit}
   .evo h2{font-size:22px}
   .evo p{margin-bottom:12px}
 }
+
+/* ================= v20: 스킬 조합 · 미니맵 · 캐릭터 특성 ================= */
+/* 캐릭터 미리보기 칩 */
+.p-meta{display:flex;gap:8px;align-items:flex-start;margin-top:7px}
+.p-meta .meta-label{flex:none;width:58px;font-size:10px;color:#7c8aa5;font-weight:800;letter-spacing:.3px;padding-top:3px}
+.p-meta .chips{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
+.aff-chip{font-size:10px;font-weight:800;color:#bfdbfe;background:rgba(59,130,246,.16);border:1px solid rgba(96,165,250,.35);border-radius:999px;padding:2px 7px;white-space:nowrap}
+.mastery-chip{font-size:10px;font-weight:800;color:#0b1020;background:var(--mc,#94a3b8);border-radius:999px;padding:2px 7px;white-space:nowrap}
+.wb-chip{font-size:10px;font-weight:800;color:#fde68a;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);border-radius:999px;padding:2px 7px;white-space:nowrap}
+.trait-line{font-size:11px;color:#c4b5fd;margin:8px 0 0;line-height:1.5}
+.preview .p-info{max-height:none}
+
+/* 무기 HUD — 각성/준비 상태 */
+.wp.ready{border-color:#fbbf24;box-shadow:0 0 12px rgba(251,191,36,.75);animation:readyPulse 1s ease-in-out infinite}
+.wp.awake{background:linear-gradient(180deg,rgba(251,191,36,.3),rgba(9,14,25,.8))}
+.wp.awake b{color:#fde68a}
+@keyframes readyPulse{0%,100%{box-shadow:0 0 6px rgba(251,191,36,.5)}50%{box-shadow:0 0 16px rgba(251,191,36,.95)}}
+
+/* 레벨업 카드 — 조합 힌트 / 각성 카드 */
+.card{display:flex;flex-direction:column}
+.card .c-top>div:last-child{min-width:0}
+.card .c-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .c-combo{font-size:10.5px;line-height:1.45;color:#a8b6cc;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:5px 8px;margin-top:auto}
+.card .c-combo.ready{color:#fde68a;background:rgba(251,191,36,.13);border-color:rgba(251,191,36,.4);font-weight:700}
+.card .c-combo b{color:#fde68a}
+.card .c-formula{font-size:10px;font-weight:800;color:#fcd34d;background:rgba(251,191,36,.10);border:1px dashed rgba(251,191,36,.4);border-radius:8px;padding:5px 7px;margin-bottom:8px;line-height:1.5}
+.card .c-formula b{color:#fff}
+.card.card-awake{border-color:rgba(251,191,36,.65);background:linear-gradient(170deg,rgba(66,46,14,.97),rgba(20,14,8,.99));box-shadow:0 0 0 1px rgba(251,191,36,.35),0 16px 46px rgba(251,191,36,.22);animation:awakeGlow 1.8s ease-in-out infinite}
+.card.card-awake::before{height:4px;background:linear-gradient(90deg,#fbbf24,#fff3c4,#fbbf24)}
+.card.card-awake .c-icon{background:radial-gradient(circle,rgba(251,191,36,.35),rgba(251,191,36,.05));border-color:rgba(251,191,36,.55);box-shadow:0 0 18px rgba(251,191,36,.4)}
+@keyframes awakeGlow{0%,100%{box-shadow:0 0 0 1px rgba(251,191,36,.35),0 12px 34px rgba(251,191,36,.16)}50%{box-shadow:0 0 0 1px rgba(251,191,36,.7),0 18px 52px rgba(251,191,36,.4)}}
+.awakechip{font-size:9.5px;font-weight:900;color:#231a02;background:linear-gradient(180deg,#fde68a,#fbbf24);padding:3px 8px;border-radius:6px;letter-spacing:.3px}
+.aff-star{color:#fbbf24;font-size:13px}
+
+/* 일시정지 패널 — 탭 */
+.pause-panel{width:min(460px,94vw);max-height:92vh;overflow-y:auto;gap:0;text-align:left}
+.pause-panel.wide{width:min(640px,96vw)}
+.pause-tabs{display:flex;gap:4px;background:rgba(255,255,255,.05);border:1px solid var(--line);padding:4px;border-radius:13px;margin-bottom:14px}
+.pause-tabs button{flex:1;padding:9px 4px;border-radius:9px;background:transparent;color:#94a3b8;font-weight:800;font-size:12px;transition:.15s}
+.pause-tabs button:hover{color:#e2e8f0}
+.pause-tabs button.on{background:linear-gradient(180deg,#334155,#1e293b);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.pause-tab{display:flex;flex-direction:column;gap:9px}
+.pause-tab h2{margin:0 0 4px;font-size:17px;text-align:center}
+.pause-tab .btn{width:100%}
+.pause-settings{display:flex;gap:8px}
+.pause-settings .btn{flex:1;font-size:12px;padding:10px 6px}
+.pause-tab .tiny{text-align:center}
+
+/* 런 요약 */
+#runSummary{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:7px}
+.sum-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px}
+.sum-top b{font-size:14px}
+.sum-top span{color:#94a3b8;font-size:11px}
+.sum-weapons{display:flex;flex-wrap:wrap;gap:4px}
+.sum-w{font-size:10.5px;font-weight:700;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:7px;padding:3px 6px;display:inline-flex;gap:3px;align-items:center}
+.sum-w em{font-style:normal;color:#94a3b8;font-size:9.5px}
+.sum-w.on{color:#fde68a;border-color:rgba(251,191,36,.45);background:rgba(251,191,36,.1)}
+.sum-w.on em{color:#fbbf24}
+.sum-meta{font-size:10.5px;color:#94a3b8}
+
+/* 일시정지 미니맵 */
+.map-frame{position:relative;width:100%;aspect-ratio:1/1;max-height:56vh;background:rgba(6,10,20,.6);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#pauseMap{width:100%;height:100%;display:block}
+.map-legend{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:center;font-size:10.5px;color:#94a3b8}
+.map-legend span{display:inline-flex;align-items:center;gap:4px}
+.map-legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dot.player{background:#fff;box-shadow:0 0 0 2px rgba(147,197,253,.6)}
+.dot.boss{background:#ef4444}
+.dot.legend{background:#c4b5fd}
+.dot.chest{background:#fbbf24}
+.dot.item{background:#34d399}
+.dot.prop{background:rgba(255,255,255,.4)}
+.map-info{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.map-info .mi{background:rgba(255,255,255,.045);border:1px solid var(--line);border-radius:10px;padding:7px 4px;text-align:center}
+.map-info .mi b{display:block;font-size:13px;color:#e2e8f0}
+.map-info .mi span{font-size:9.5px;color:#94a3b8}
+
+/* 일시정지 조합표 */
+.combo-hintline{font-size:11px;color:#94a3b8;line-height:1.6;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.22);border-radius:10px;padding:8px 10px}
+.combo-hintline b{color:#fde68a}
+.combo-aff{font-size:10.5px;color:#bfdbfe;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.combo-scroll{display:flex;flex-direction:column;gap:5px;max-height:46vh;overflow-y:auto;padding-right:2px}
+.combo-line{display:grid;grid-template-columns:26px 1fr 14px 26px 1fr 74px;align-items:center;gap:5px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:6px 7px;opacity:.55}
+.combo-line.grow,.combo-line.needpair,.combo-line.ready,.combo-line.awake{opacity:1}
+.combo-line.ready{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.1)}
+.combo-line.awake{border-color:rgba(251,191,36,.7);background:linear-gradient(90deg,rgba(251,191,36,.18),rgba(251,191,36,.04))}
+.cl-icon{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:13px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12)}
+.cl-name{min-width:0}
+.cl-name b{display:block;font-size:10.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cl-name small{display:block;font-size:9px;color:#8b98ad}
+.cl-plus{text-align:center;color:#64748b;font-weight:900;font-size:11px}
+.cl-state{font-size:8.5px;font-weight:900;text-align:center;padding:4px 2px;border-radius:6px;background:rgba(255,255,255,.06);color:#94a3b8;line-height:1.2}
+.cl-state.ready{background:#fbbf24;color:#231a02}
+.cl-state.awake{background:linear-gradient(180deg,#fde68a,#f59e0b);color:#231a02}
+.cl-state.needpair{background:rgba(248,113,113,.18);color:#fca5a5}
+.cl-state.grow{color:#93c5fd}
+
+/* 도감 조합표 */
+.combo-table{display:flex;flex-direction:column;gap:7px;margin-bottom:24px}
+.combo-table .combo-row{display:grid;grid-template-columns:34px 1.1fr 12px 34px .9fr 16px 1.2fr;gap:7px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.combo-table .ci{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:16px;background:rgba(255,255,255,.06);border:1px solid var(--line);box-shadow:inset 0 0 0 1px var(--cc)}
+.combo-table .cb{min-width:0}
+.combo-table .cb b{display:block;font-size:11.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.combo-table .cb b em{font-style:normal;color:#fbbf24;font-size:9.5px;margin-left:4px}
+.combo-table .cb small{display:block;font-size:9.5px;color:#8b98ad;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.combo-table .plus{text-align:center;color:#64748b;font-weight:900}
+.combo-table .arrow{text-align:center;color:#fbbf24;font-weight:900}
+.awake-cell{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.28);border-radius:9px;padding:5px 7px;min-width:0}
+.awake-cell b{display:block;font-size:11px;color:#fde68a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.awake-cell small{display:block;font-size:9px;color:#c9b48b;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* 결과 — 기술 목록 */
+.res-weapons{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin:0 0 14px}
+.res-weapons .rw{font-size:10.5px;font-weight:700;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:8px;padding:4px 7px;display:inline-flex;gap:4px;align-items:center}
+.res-weapons .rw em{font-style:normal;color:#94a3b8;font-size:9px}
+.res-weapons .rw.on{color:#fde68a;border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.12)}
+.res-weapons .rw.on em{color:#fbbf24}
+
+@media(max-width:700px){
+  .combo-table .combo-row{grid-template-columns:28px 1fr 10px 28px 1fr;grid-template-areas:"i1 n1 p i2 n2" "aw aw aw aw aw"}
+  .combo-table .ci{width:26px;height:26px;font-size:13px}
+  .combo-table .awake-cell{grid-column:1 / -1;margin-top:2px}
+  .combo-table .arrow{display:none}
+  .combo-table .combo-row> :nth-child(1){grid-area:i1}
+  .combo-table .combo-row> :nth-child(2){grid-area:n1}
+  .combo-table .combo-row> :nth-child(3){grid-area:p}
+  .combo-table .combo-row> :nth-child(4){grid-area:i2}
+  .combo-table .combo-row> :nth-child(5){grid-area:n2}
+  .combo-table .combo-row> :nth-child(7){grid-area:aw}
+  .pause-panel{width:min(430px,94vw);padding:16px}
+  .pause-panel.wide{width:96vw}
+  .pause-tabs button{font-size:10.5px;padding:8px 2px}
+  .map-info{grid-template-columns:repeat(3,1fr)}
+  .combo-line{grid-template-columns:24px 1fr 12px 24px 1fr 66px;gap:4px;padding:5px 6px}
+  .cl-name b{font-size:10px}
+  .cl-state{font-size:8px}
+  .p-meta .meta-label{width:52px;font-size:9px}
+  .preview{min-height:0}
+  .preview .p-info h3{font-size:17px}
+}

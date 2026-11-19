@@ -1,12 +1,12 @@
 /* ============================================================
    POKE SURVIVOR — 부트스트랩 / 입력 / 루프
    ============================================================ */
-import { Game } from './game.js?v=19';
-import { UI } from './ui.js?v=19';
-import { DEX, CHARACTERS, STAGES } from './data.js?v=19';
-import { preload, playCry, setCryEnabled } from './sprites.js?v=19';
-import { initAudio, setSfxEnabled, SFX } from './audio.js?v=19';
-import { getSave, persist, recordRun, toggleSetting } from './save.js?v=19';
+import { Game } from './game.js?v=20';
+import { UI } from './ui.js?v=20';
+import { DEX, CHARACTERS, STAGES } from './data.js?v=20';
+import { preload, playCry, setCryEnabled } from './sprites.js?v=20';
+import { initAudio, setSfxEnabled, SFX } from './audio.js?v=20';
+import { getSave, persist, recordRun, toggleSetting } from './save.js?v=20';
 
 /* ---------- 오류 수집 (검증용) ---------- */
 window.__errors = [];
@@ -20,6 +20,7 @@ window.addEventListener('unhandledrejection', e => {
 const cv = document.getElementById('cv');
 const ui = new UI();
 const game = new Game(cv, {});
+ui.game = game;
 window.__game = game;
 window.__ui = ui;
 window.__save = getSave;
@@ -97,7 +98,7 @@ addEventListener('keydown', e => {
   initAudio();
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
-  if (k === 'escape' || k === 'p') { togglePause(); return; }
+  if (e.key === 'Escape' || k === 'p') { togglePause(); return; }
   keys.add(k);
   updateMove();
 });
@@ -151,6 +152,14 @@ function togglePause() {
   }
 }
 document.getElementById('pauseBtn').addEventListener('click', togglePause);
+/* 일시정지 탭 (일시정지 / 미니맵 / 조합표) */
+['pause', 'map', 'combo'].forEach(name => {
+  const btn = document.getElementById('ptab-' + name);
+  if (btn) btn.addEventListener('click', () => ui.pauseTab(name));
+});
+document.getElementById('pauseOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget && pausedByUser) togglePause();
+});
 document.getElementById('resumeBtn').addEventListener('click', togglePause);
 document.getElementById('quitBtn').addEventListener('click', () => {
   pausedByUser = false;

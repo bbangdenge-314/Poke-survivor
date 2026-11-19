@@ -1,11 +1,13 @@
 /* ============================================================
    UI — 화면(타이틀/선택/상점/도감/결과) 및 HUD
    ============================================================ */
-import { CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES, TYPE_COLORS, BRANCH_NAMES } from './data.js?v=19';
-import { spriteURL, getSprite } from './sprites.js?v=19';
-import { getSave, upgradeCost, buyUpgrade, isUnlocked, unlockChar, metaMods } from './save.js?v=19';
+import { CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES, TYPE_COLORS, BRANCH_NAMES, FIELD_ITEMS } from './data.js?v=20';
+import { spriteURL, getSprite } from './sprites.js?v=20';
+import { getSave, upgradeCost, buyUpgrade, isUnlocked, unlockChar, metaMods } from './save.js?v=20';
 
 const $ = id => document.getElementById(id);
+
+const AFFINITY_LABEL = id => WEAPONS[id] ? `${WEAPONS[id].icon}${WEAPONS[id].name}` : id;
 
 export class UI {
   constructor() {
@@ -17,6 +19,8 @@ export class UI {
     this.onShop = null;
     this.onTitle = null;
     this.lastWeaponSig = '';
+    this.game = null;
+    this.pauseTabName = 'pause';
   }
 
   /* ---------------- 공통 ---------------- */
@@ -51,11 +55,11 @@ export class UI {
         <div class="ball-anim"><div class="pokeball"></div></div>
         <div class="logo-badge">POKÉMON ROGUELIKE SURVIVOR</div>
         <h1 class="logo">포켓 서바이버<small>POKE SURVIVOR</small></h1>
-        <p class="tagline">20종의 포켓몬 · 진화와 이로치 · 전설의 강림<br>15분을 버텨 최종 보스를 쓰러뜨려라</p>
+        <p class="tagline">20종의 포켓몬 · 기술 조합 각성 · 진화와 이로치<br>15분을 버텨 최종 보스를 쓰러뜨려라</p>
         <div class="title-menu">
           <button class="btn primary" id="btnPlay">⚔️ 모험 시작<span class="sub">포켓몬 선택</span></button>
           <button class="btn blue" id="btnShop">💠 영구 강화<span class="sub">${s.coins} 코인</span></button>
-          <button class="btn ghost" id="btnDex">📖 포켓몬 도감<span class="sub">${Object.keys(s.dexCaught).length} / ${Object.keys(DEX).length}</span></button>
+          <button class="btn ghost" id="btnDex">📖 도감 · 조합표<span class="sub">${Object.keys(s.dexCaught).length} / ${Object.keys(DEX).length}</span></button>
         </div>
         <div class="title-stats">
           <div class="stat"><b>${s.wins}</b><span>클리어</span></div>
@@ -144,12 +148,28 @@ export class UI {
     const c = CHAR_BY_KEY[this.selectedChar];
     const s = getSave();
     const st = STAGES.find(x => x.key === this.selectedStage);
-    const meta = metaMods();
     const owned = !!s.shiny[c.key];
     if (!owned) this.shinyPref = false;
     const pv = $('preview');
     if (!pv) return;
     const chainHtml = `<div class="chain">${c.chain.map(ch => `<img src="${spriteURL(ch.id, false)}" title="${ch.name}">`).join('<span>›</span>')}${c.branch ? `<span>›</span><span style="color:#fbbf24">5가지 분기</span>` : ''}</div>`;
+    const mastery = Object.entries(c.mastery || {}).map(([t, v]) => `<span class="mastery-chip" style="--mc:${TYPE_COLORS[t] || '#94a3b8'}">${t} +${Math.round(v * 100)}%</span>`).join('');
+    const aff = (c.affinity || []).map(id => `<span class="aff-chip">${AFFINITY_LABEL(id)}</span>`).join('');
+    const wb = Object.entries(c.weaponBonus || {}).map(([id, b]) => {
+      const d = WEAPONS[id];
+      if (!d) return '';
+      const bits = [];
+      if (b.count) bits.push(`수 +${b.count}`);
+      if (b.chains) bits.push(`연쇄 +${b.chains}`);
+      if (b.radius) bits.push(`범위 +${Math.round((b.radius - 1) * 100)}%`);
+      if (b.pierce) bits.push(`관통 +${b.pierce}`);
+      if (b.blast) bits.push(`폭발 +${Math.round((b.blast - 1) * 100)}%`);
+      if (b.width) bits.push(`굵기 +${Math.round((b.width - 1) * 100)}%`);
+      if (b.dist) bits.push(`거리 +${b.dist}`);
+      if (b.dmg) bits.push(`피해 +${Math.round((b.dmg - 1) * 100)}%`);
+      if (b.cd) bits.push(`쿨 -${Math.round((1 - b.cd) * 100)}%`);
+      return `<span class="wb-chip">${d.icon}${d.name} ${bits.join('·')}</span>`;
+    }).join('');
     pv.innerHTML = `
       <img class="big" src="${spriteURL(c.id, this.shinyPref && owned)}" alt="${c.chain[0].name}">
       <div class="p-info">
@@ -157,6 +177,10 @@ export class UI {
         <div class="types">${DEX[c.id].t.map(t => `<span class="type-chip" style="background:${TYPE_COLORS[t]}">${t}</span>`).join('')}</div>
         <p class="p-desc">체력 ${c.hp} · 이동 ${c.speed} · 공격 ${Math.round(c.dmg * 100)}%</p>
         <div class="sig"><b>${c.sigName}</b> — ${c.sigDesc}</div>
+        <div class="p-meta"><span class="meta-label">친화 기술</span><div class="chips">${aff}</div></div>
+        <div class="p-meta"><span class="meta-label">타입 보너스</span><div class="chips">${mastery}</div></div>
+        ${wb ? `<div class="p-meta"><span class="meta-label">전용 강화</span><div class="chips">${wb}</div></div>` : ''}
+        <p class="trait-line">✦ ${c.trait}</p>
         ${chainHtml}
       </div>`;
     const startEl = $('startPanel');
@@ -164,6 +188,7 @@ export class UI {
       <div class="row"><span>스테이지</span><b>${st.name}</b></div>
       <div class="row"><span>제한 시간</span><b>${Math.round(st.duration / 60)}분</b></div>
       <div class="row"><span>기본 기술</span><b>${WEAPONS[c.weapon].icon} ${WEAPONS[c.weapon].name}</b></div>
+      <div class="row"><span>첫 각성 조합</span><b>${WEAPONS[c.weapon].pair ? PASSIVES[WEAPONS[c.weapon].pair].icon + PASSIVES[WEAPONS[c.weapon].pair].name : '—'}</b></div>
       <label class="shiny-toggle ${owned ? '' : 'off'}" id="shinyToggle">
         <input type="checkbox" id="shinyChk" ${this.shinyPref ? 'checked' : ''} ${owned ? '' : 'disabled'}>
         <span>✦ 이로치로 시작 ${owned ? '' : '(미보유)'}</span>
@@ -176,7 +201,6 @@ export class UI {
     $('goBtn').onclick = () => {
       if (this.onStart) this.onStart({ charKey: this.selectedChar, stageKey: this.selectedStage, shiny: this.shinyPref && owned });
     };
-    void meta;
   }
 
   /* ---------------- 상점 ---------------- */
@@ -246,7 +270,7 @@ export class UI {
     });
   }
 
-  /* ---------------- 도감 ---------------- */
+  /* ---------------- 도감 + 조합표 ---------------- */
   showDex() {
     const s = getSave();
     const ids = Object.keys(DEX).map(Number).sort((a, b) => a - b);
@@ -261,6 +285,27 @@ export class UI {
         <div class="dn">${seen ? d.n : '???'}</div>
       </div>`;
     }).join('');
+
+    const combos = Object.keys(WEAPONS).map(id => {
+      const w = WEAPONS[id];
+      const p = PASSIVES[w.pair];
+      return `<div class="combo-row">
+        <span class="ci" style="--cc:${w.color}">${w.icon}</span>
+        <div class="cb">
+          <b>${w.name}<em>Lv.${w.max}</em></b>
+          <small>${w.desc}</small>
+        </div>
+        <span class="plus">+</span>
+        <span class="ci" style="--cc:${p.color}">${p.icon}</span>
+        <div class="cb"><b>${p.name}<em>Lv.1</em></b><small>${p.desc}</small></div>
+        <span class="arrow">➜</span>
+        <div class="awake-cell" style="--ac:${w.awakeColor}">
+          <b>${w.awakeIcon} ${w.awakeName}</b>
+          <small>${w.awakeDesc}</small>
+        </div>
+      </div>`;
+    }).join('');
+
     this.screen(`
       <div class="wrap">
         <div class="topbar">
@@ -270,6 +315,8 @@ export class UI {
           <button class="btn sm ghost" id="backBtn">← 로비</button>
         </div>
         <div class="dex-grid">${cells}</div>
+        <div class="section-title">기술 조합표 <span class="cnt">액티브 Lv.6 + 짝 패시브 → 각성</span></div>
+        <div class="combo-table">${combos}</div>
       </div>`);
     $('backBtn').onclick = () => this.showTitle();
   }
@@ -299,12 +346,15 @@ export class UI {
     const src = spriteURL(g.currentStage(), p.shiny);
     if (portrait.getAttribute('src') !== src) portrait.setAttribute('src', src);
 
-    const sig = p.weaponList.map(w => `${w.id}${w.lv}`).join(',');
+    const sig = p.weaponList.map(w => `${w.id}${w.lv}${w.awake ? '!' : ''}`).join(',') + `#${g.awakenCount}`;
     if (sig !== this.lastWeaponSig) {
       this.lastWeaponSig = sig;
       $('weaponRow').innerHTML = p.weaponList.map(w => {
         const d = WEAPONS[w.id];
-        return `<div class="wp ${w.lv >= d.max ? 'awake' : ''}" title="${d.name} Lv.${w.lv}"><span>${d.icon}</span><b>${w.lv}</b></div>`;
+        const ready = g.canAwaken(w);
+        return `<div class="wp ${w.awake ? 'awake' : ''} ${ready ? 'ready' : ''}" title="${w.awake ? d.awakeName : d.name} Lv.${w.lv}${ready ? ' · 각성 가능!' : ''}">
+          <span>${w.awake ? d.awakeIcon : d.icon}</span><b>${w.awake ? '★' : w.lv}</b>
+        </div>`;
       }).join('');
     }
 
@@ -321,20 +371,33 @@ export class UI {
 
   /* ---------------- 레벨업 ---------------- */
   showLevelUp(g, cards) {
+    this.game = g;
     const list = $('cardList');
     list.innerHTML = cards.map((c, i) => {
-      const kind = c.type === 'weapon' ? '기술' : c.type === 'passive' ? '패시브' : '보너스';
+      const kind = c.type === 'weapon' ? '액티브 기술' : c.type === 'passive' ? '패시브' : c.type === 'awaken' ? '각성 기술' : '보너스';
       const lvTxt = c.type === 'heal' || c.type === 'coin' ? '즉시'
+        : c.type === 'awaken' ? 'Lv.6 → 각성'
         : c.isNew ? 'Lv.1 습득' : `Lv.${c.lv} → ${c.lv + 1}`;
-      return `<button class="card" data-i="${i}" style="--cc:${c.color || '#60a5fa'}">
+      const combo = c.type === 'awaken'
+        ? `<div class="c-combo ready"><b>조합 완성!</b> ${c.pairIcon}${c.pairName} Lv.1 보유 — 지금 바로 각성</div>`
+        : c.type === 'passive' && c.comboHint
+          ? `<div class="c-combo ${c.comboReady && c.comboReady.length ? 'ready' : ''}">${c.comboReady && c.comboReady.length ? '⚡ ' : ''}${c.comboHint}</div>`
+          : c.type === 'weapon' && c.hint
+            ? `<div class="c-combo ${c.pairOk ? 'ready' : ''}">${c.hint}</div>` : '';
+      return `<button class="card ${c.type === 'awaken' ? 'card-awake' : ''}" data-i="${i}" style="--cc:${c.color || '#60a5fa'}">
         <div class="c-top">
           <div class="c-icon">${c.icon}</div>
-          <div><div class="c-name">${c.name}</div><div class="c-kind">${kind}</div></div>
+          <div style="min-width:0">
+            <div class="c-name">${c.name}${c.affinity ? ' <span class="aff-star">★</span>' : ''}</div>
+            <div class="c-kind">${kind}${c.type === 'awaken' ? ' · 진화 무기' : ''}</div>
+          </div>
         </div>
+        ${c.type === 'awaken' ? `<div class="c-formula">${c.fromIcon}${c.fromName} <b>Lv.6</b> + ${c.pairIcon}${c.pairName} <b>Lv.1</b></div>` : ''}
         <div class="c-desc">${c.desc}</div>
+        ${combo}
         <div class="c-foot">
           <span class="lvchip">${lvTxt}</span>
-          ${c.isNew ? '<span class="newchip">NEW</span>' : c.awake ? '<span class="awake">각성!</span>' : ''}
+          ${c.isNew ? '<span class="newchip">NEW</span>' : c.type === 'awaken' ? '<span class="awakechip">각성 해금</span>' : c.awake ? '<span class="awake">Lv.6 MAX</span>' : ''}
         </div>
       </button>`;
     }).join('');
@@ -351,7 +414,7 @@ export class UI {
 
   /* ---------------- 진화 ---------------- */
   showEvolve(g, info) {
-    $('evoKicker').textContent = info.awaken ? 'AWAKENING' : 'EVOLUTION';
+    $('evoKicker').textContent = info.awaken ? 'LIMIT BREAK' : 'EVOLUTION';
     $('evoFrom').src = spriteURL(info.from, g.player.shiny);
     $('evoTo').src = spriteURL(info.to, g.player.shiny);
     $('evoName').textContent = info.name;
@@ -385,10 +448,95 @@ export class UI {
 
   /* ---------------- 일시정지 ---------------- */
   showPause(settings) {
+    this.game = this.game || window.__game;
     $('pauseOverlay').classList.remove('hidden');
     $('soundBtn').textContent = '효과음: ' + (settings.sfx ? '켜짐' : '꺼짐');
     $('cryBtn').textContent = '울음소리: ' + (settings.cries ? '켜짐' : '꺼짐');
+    this.renderRunSummary();
+    this.renderComboTable();
+    this.pauseTab('pause');
   }
+
+  pauseTab(name) {
+    this.pauseTabName = name;
+    ['pause', 'map', 'combo'].forEach(k => {
+      const btn = $('ptab-' + k);
+      if (btn) btn.classList.toggle('on', k === name);
+      const panel = $('tab-' + k);
+      if (panel) panel.classList.toggle('hidden', k !== name);
+    });
+    $('pausePanel').classList.toggle('wide', name !== 'pause');
+    if (name === 'map') {
+      requestAnimationFrame(() => {
+        if (this.game) this.game.drawMinimapTo($('pauseMap'));
+        this.renderMapInfo();
+      });
+    }
+  }
+
+  renderRunSummary() {
+    const g = this.game;
+    const el = $('runSummary');
+    if (!el || !g || !g.player) return;
+    const p = g.player;
+    const list = p.weaponList.map(w => {
+      const d = WEAPONS[w.id];
+      return `<span class="sum-w ${w.awake ? 'on' : ''}">${w.awake ? d.awakeIcon : d.icon}${w.name}<em>${w.awake ? '각성' : 'Lv.' + w.lv}</em></span>`;
+    }).join('');
+    el.innerHTML = `<div class="sum-top"><b>${g.currentStageName()}</b><span>Lv.${p.level} · ${this.fmtTime(g.time)} · 처치 ${g.kills}</span></div>
+      <div class="sum-weapons">${list}</div>
+      <div class="sum-meta">각성 ${g.awakenCount}개 · 아이템 ${g.itemsCollected}개 · 코인 ${Math.round(g.runCoins)}</div>`;
+  }
+
+  renderMapInfo() {
+    const g = this.game;
+    const el = $('mapInfo');
+    if (!el || !g || !g.player) return;
+    const bosses = g.enemies.filter(e => e.boss && !e.dead).length;
+    const legends = g.enemies.filter(e => e.legend && !e.dead).length;
+    const chests = g.pickups.filter(i => i.kind === 'chest').length;
+    el.innerHTML = `
+      <div class="mi"><b>${Math.round(g.player.x)}, ${Math.round(g.player.y)}</b><span>현재 위치</span></div>
+      <div class="mi"><b>${bosses}</b><span>보스</span></div>
+      <div class="mi"><b>${legends}</b><span>환상</span></div>
+      <div class="mi"><b>${chests}</b><span>보물상자</span></div>
+      <div class="mi"><b>${g.fieldItems.length}</b><span>필드 아이템</span></div>
+      <div class="mi"><b>${g.props.filter(p => !p.dead).length}</b><span>파괴 오브젝트</span></div>`;
+  }
+
+  renderComboTable() {
+    const g = this.game;
+    const el = $('comboList');
+    if (!el || !g || !g.player) return;
+    const p = g.player;
+    const owned = new Map(p.weaponList.map(w => [w.id, w]));
+    const rows = Object.keys(WEAPONS).map(id => {
+      const d = WEAPONS[id];
+      const pd = PASSIVES[d.pair];
+      const w = owned.get(id);
+      const pairLv = p.passives[d.pair] || 0;
+      let state = 'locked', stateTxt = '미습득';
+      if (w) {
+        if (w.awake) { state = 'awake'; stateTxt = '각성 완료'; }
+        else if (g.canAwaken(w)) { state = 'ready'; stateTxt = '각성 가능!'; }
+        else if (w.lv >= d.max && pairLv < 1) { state = 'needpair'; stateTxt = '패시브 필요'; }
+        else { state = 'grow'; stateTxt = `Lv.${w.lv} / ${d.max}`; }
+      }
+      return `<div class="combo-line ${state}">
+        <span class="cl-icon">${d.icon}</span>
+        <div class="cl-name"><b>${d.name}</b><small>${w ? (w.awake ? d.awakeIcon + ' ' + d.awakeName : 'Lv.' + w.lv + ' / ' + d.max) : '미습득'}</small></div>
+        <span class="cl-plus">+</span>
+        <span class="cl-icon">${pd.icon}</span>
+        <div class="cl-name"><b>${pd.name}</b><small>Lv.${pairLv}${pairLv ? '' : ' (필요)'}</small></div>
+        <span class="cl-state ${state}">${stateTxt}</span>
+      </div>`;
+    }).join('');
+    const aff = (g.char.affinity || []).map(id => `<span class="aff-chip">${AFFINITY_LABEL(id)}</span>`).join('');
+    el.innerHTML = `<div class="combo-hintline">액티브 기술 <b>Lv.6</b> + 짝 패시브 <b>Lv.1</b>을 맞추면 레벨업·상자에서 <b>각성 기술</b>이 해금됩니다.</div>
+      <div class="combo-aff">${g.char.chain[0].name} 친화 기술: ${aff}</div>
+      <div class="combo-scroll">${rows}</div>`;
+  }
+
   hidePause() { $('pauseOverlay').classList.add('hidden'); }
 
   /* ---------------- 결과 ---------------- */
@@ -406,9 +554,13 @@ export class UI {
           <div class="rg"><b>${r.level}</b><span>최종 레벨</span></div>
           <div class="rg"><b>${r.kills}</b><span>처치</span></div>
           <div class="rg"><b>${r.bosses}</b><span>보스</span></div>
-          <div class="rg"><b>${r.legends}</b><span>환상 포획</span></div>
-          <div class="rg"><b>${r.shinies}</b><span>이로치</span></div>
+          <div class="rg"><b>${r.awakens || 0}</b><span>각성 기술</span></div>
+          <div class="rg"><b>${r.items || 0}</b><span>필드 아이템</span></div>
         </div>
+        <div class="res-weapons">${(r.weapons || []).map(w => {
+          const d = WEAPONS[w.id];
+          return `<span class="rw ${w.awake ? 'on' : ''}">${w.awake ? d.awakeIcon : d.icon}${w.awake ? d.awakeName : d.name}<em>${w.awake ? '각성' : 'Lv.' + w.lv}</em></span>`;
+        }).join('')}</div>
         <div class="reward">
           <div><b>+${r.coins}</b><span>🪙 코인</span></div>
           <div><b>+${r.dust}</b><span>✨ 별의모래</span></div>
@@ -434,3 +586,7 @@ export class UI {
     this.clear();
   }
 }
+void FIELD_ITEMS;
+void getSprite;
+void metaMods;
+void TYPE_COLORS;

@@ -67,6 +67,22 @@ export function preload(ids, shiny = false, onProgress) {
   })));
 }
 
+/* ---------- 흰색 실루엣 캐시 (피격 플래시) ---------- */
+const whiteCache = new WeakMap();
+export function getWhiteSprite(img) {
+  let c = whiteCache.get(img);
+  if (c) return c;
+  c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const x = c.getContext('2d');
+  x.drawImage(img, 0, 0);
+  x.globalCompositeOperation = 'source-in';
+  x.fillStyle = '#ffffff';
+  x.fillRect(0, 0, c.width, c.height);
+  whiteCache.set(img, c);
+  return c;
+}
+
 /* ---------- 실제 그림 영역(알파 bbox) 측정 ---------- */
 const bboxCache = new Map();
 export function spriteBounds(img) {
