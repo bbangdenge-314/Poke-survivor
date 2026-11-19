@@ -26,9 +26,11 @@ body {
   color: var(--ink);
   background: linear-gradient(180deg, #d9f1ff 0%, #ecfbf1 55%, #fff7ea 100%);
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
   -webkit-font-smoothing: antialiased;
 }
-#cv { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+#cv { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 .hidden { display: none !important; }
 button { font-family: inherit; color: inherit; cursor: pointer; }
 img { -webkit-user-drag: none; user-select: none; }
@@ -74,9 +76,12 @@ img { -webkit-user-drag: none; user-select: none; }
 .center { text-align: center; }
 
 /* ---------------- 화면 루트 ---------------- */
-#screenRoot { position: fixed; inset: 0; z-index: 20; overflow: hidden; }
+/* 루트 자체는 터치를 통과시킨다. 자식 화면(.screen)만 터치를 받는다.
+   (예전엔 빈 루트가 화면 전체를 덮어 인게임 조이스틱·일시정지 버튼 터치를 모두 삼켰다) */
+#screenRoot { position: fixed; inset: 0; z-index: 20; overflow: hidden; pointer-events: none; }
 .screen {
   position: absolute; inset: 0;
+  pointer-events: auto;
   overflow-y: auto; overflow-x: hidden;
   padding: 22px 18px 40px;
   background:
@@ -321,7 +326,9 @@ img { -webkit-user-drag: none; user-select: none; }
 .stat-chip span { font-size: 8.5px; color: #8296b4; font-weight: 800; }
 .stat-chip.kills b { color: #e0487c; }
 .stat-chip.coins b { color: #b07a00; }
-.icon-btn { pointer-events: auto; width: 38px; height: 38px; border-radius: 12px; border: 0; background: rgba(255,255,255,.92); box-shadow: var(--shadow-soft); display: flex; gap: 3px; align-items: center; justify-content: center; }
+.icon-btn { pointer-events: auto; position: relative; width: 38px; height: 38px; border-radius: 12px; border: 0; background: rgba(255,255,255,.92); box-shadow: var(--shadow-soft); display: flex; gap: 3px; align-items: center; justify-content: center; }
+/* 손가락 터치용으로 보이는 크기보다 넉넉한 탭 영역(44px 이상) 확보 */
+.icon-btn::after { content: ''; position: absolute; inset: -5px; border-radius: 16px; }
 .icon-btn .pbar { width: 5px; height: 16px; border-radius: 2px; background: #5b6b88; }
 
 .boss-bar { position: absolute; top: 92px; left: 50%; transform: translateX(-50%); width: min(460px, 82vw); background: rgba(255,255,255,.9); border-radius: 14px; padding: 7px 12px; box-shadow: var(--shadow-soft); }
@@ -539,7 +546,8 @@ img { -webkit-user-drag: none; user-select: none; }
   .stat-chip { padding: 3px 6px; border-radius: 9px; }
   .stat-chip b { font-size: 11.5px; }
   .stat-chip span { font-size: 7px; }
-  .icon-btn { width: 32px; height: 32px; }
+  .icon-btn { width: 34px; height: 34px; }
+  .icon-btn::after { inset: -7px; }
   .boss-bar { top: 72px; }
   .weapon-row { bottom: 62px; max-width: 180px; gap: 3px; }
   .wp { width: 28px; height: 28px; border-radius: 9px; font-size: 12px; }

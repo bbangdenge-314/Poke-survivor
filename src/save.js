@@ -1,5 +1,5 @@
 /* 영구 저장(localStorage) · 메타 진행 · 퀘스트 해금 */
-import { CHARACTERS, UPGRADES, QUESTS, QUEST_BY_KEY, PASSIVES, FIELD_ITEMS, LOCKED_PASSIVES, LOCKED_FIELDS, SAVE_KEY } from './data.js?v=23';
+import { CHARACTERS, UPGRADES, QUESTS, QUEST_BY_KEY, PASSIVES, FIELD_ITEMS, LOCKED_PASSIVES, LOCKED_FIELDS, SAVE_KEY } from './data.js?v=24';
 
 const baseSettings = () => ({ sfx: true, cries: true, shake: true, view: 'wide' });
 

@@ -4,14 +4,14 @@
 import {
   CHARACTERS, CHAR_BY_KEY, STAGES, DEX, WEAPONS, PASSIVES, UPGRADES,
   TYPE_COLORS, BRANCH_NAMES, FIELD_ITEMS, SUPER_AWAKENS, QUESTS, QUEST_BY_KEY, VIEW_MODES
-} from './data.js?v=23';
-import { spriteURL } from './sprites.js?v=23';
-import { setCryEnabled } from './sprites.js?v=23';
-import { setSfxEnabled } from './audio.js?v=23';
+} from './data.js?v=24';
+import { spriteURL } from './sprites.js?v=24';
+import { setCryEnabled } from './sprites.js?v=24';
+import { setSfxEnabled } from './audio.js?v=24';
 import {
   getSave, upgradeCost, buyUpgrade, isUnlocked, isStageUnlocked, isPassiveUnlocked,
   isFieldUnlocked, questState, claimQuest, questRewardText, setSetting, toggleSetting, persist
-} from './save.js?v=23';
+} from './save.js?v=24';
 
 const $ = id => document.getElementById(id);
 const AFFINITY_LABEL = id => WEAPONS[id] ? `${WEAPONS[id].icon}${WEAPONS[id].name}` : id;
