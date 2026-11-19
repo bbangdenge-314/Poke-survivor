@@ -2256,7 +2256,7 @@ export class Game {
         this.floatText(p.x, p.y - 36, '자석!', '#a78bfa', 1.05);
         break;
       case 'coin':
-        this.runCoins += 28 * p.coinMul;
+        this.runCoins += 18 * p.coinMul;
         this.floatText(p.x, p.y - 36, '+코인', '#fbbf24', 1.05);
         break;
       case 'bomb':
@@ -2429,7 +2429,7 @@ export class Game {
     const p = this.player;
 
     this.dropOrbs(e.x, e.y, e.xp, e.shiny ? '#fde68a' : (e.boss ? '#f472b6' : '#38bdf8'));
-    const coins = (e.def.xp * 0.22 + (e.boss ? 25 : 0) + (e.elite ? 15 : 0) + (e.legend ? 50 : 0)) * (e.shiny ? 4 : 1) * p.coinMul;
+    const coins = (e.def.xp * 0.10 + (e.boss ? 25 : 0) + (e.elite ? 15 : 0) + (e.legend ? 50 : 0)) * (e.shiny ? 4 : 1) * p.coinMul;
     this.runCoins += coins;
     if (e.boss) {
       this.cam.shake = 18;
@@ -2619,7 +2619,7 @@ export class Game {
 
   buildResult(win) {
     const stageBonus = this.stage.reward || 1;
-    const coins = Math.round(this.runCoins + this.kills * 0.12 + (win ? 200 * stageBonus : 0));
+    const coins = Math.round(this.runCoins + this.kills * 0.08 + (win ? 200 * stageBonus : 0));
     const dust = Math.round(this.runDust + (win ? 6 * stageBonus : 0));
     return {
       win, time: this.time, kills: this.kills, level: this.player.level,
